@@ -1,0 +1,13 @@
+{
+  "patient_id": "P001",
+  "age": 55,
+  "gender": "female",
+  "diagnosis": "breast_cancer",
+  "stage": "II",
+  "biomarkers": {
+    "HER2": "positive",
+    "ER": "positive",
+    "PR": "negative"
+  },
+  "prior_treatments": ["chemotherapy", "radiation"]
+}
