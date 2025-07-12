@@ -1,0 +1,39 @@
+HEADER
+HEADER This is a pdb format file writen by the programm fpocket.                 
+HEADER It represents the atoms contacted by the voronoi vertices of the pocket.  
+HEADER                                                                           
+HEADER Information about the pocket    11:
+HEADER 0  - Pocket Score                      : -0.0054
+HEADER 1  - Drug Score                        : 0.0003
+HEADER 2  - Number of alpha spheres           :    16
+HEADER 3  - Mean alpha-sphere radius          : 3.9999
+HEADER 4  - Mean alpha-sphere Solvent Acc.    : 0.5903
+HEADER 5  - Mean B-factor of pocket residues  : 0.4946
+HEADER 6  - Hydrophobicity Score              : -9.6000
+HEADER 7  - Polarity Score                    :     5
+HEADER 8  - Amino Acid based volume Score     : 5.4000
+HEADER 9  - Pocket volume (Monte Carlo)       : 239.9699
+HEADER 10 - Pocket volume (convex hull)       : 5.3642
+HEADER 11 - Charge Score                      :     1
+HEADER 12 - Local hydrophobic density Score   : 10.0000
+HEADER 13 - Number of apolar alpha sphere     :    11
+HEADER 14 - Proportion of apolar alpha sphere : 0.6875
+ATOM   1986   CB ASP I  33       6.830  20.794   7.058  0.00  0.00           C 0
+ATOM   2126   CB ASN I  50       9.205  17.394   3.935  0.00  0.00           C 0
+ATOM   2103   CB ARG I  48       9.493  14.216   8.022  0.00  0.00           C 0
+ATOM   1989  OD2 ASP I  33       4.848  20.010   8.178  0.00  0.00           O 0
+ATOM   2104   CG ARG I  48       8.520  13.820   9.128  0.00  0.00           C 0
+ATOM   2105   CD ARG I  48       7.679  12.657   8.722  0.00  0.00           C 0
+ATOM   2136   CD ARG I  51       9.154  17.325  11.454  0.00  0.00           C 0
+ATOM   2008   OH TYR I  35       4.517  20.193  10.757  0.00  0.00           O 0
+ATOM   2139  NH1 ARG I  51       8.289  15.209  12.858  0.00  0.00           N 0
+ATOM   2108  NH1 ARG I  48       5.456  11.140   8.083  0.00  0.00           N 0
+ATOM   2106   NE ARG I  48       6.761  12.167   9.729  0.00  0.00           N 0
+ATOM   2107   CZ ARG I  48       5.719  11.435   9.378  0.00  0.00           C 0
+ATOM   2134   CB ARG I  51      10.214  17.673   9.168  0.00  0.00           C 0
+ATOM   2124    C ASN I  50      10.457  18.362   5.711  0.00  0.00           C 0
+ATOM   2135   CG ARG I  51       9.718  18.354  10.446  0.00  0.00           C 0
+ATOM   2128  OD1 ASN I  50       7.904  18.554   2.290  0.56  6.43           O 0
+ATOM   2125    O ASN I  50       9.795  19.405   5.631  0.00  0.00           O 0
+TER
+END
