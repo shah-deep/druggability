@@ -115,13 +115,13 @@ class EnhancedInputProcessor:
             },
             'dna_sequence': {
                 'required': False,
-                'pattern': r'^[ATGCatgc\s]+$',
+                'pattern': r'^[ATGCatgc\s]+\.{0,3}$',
                 'min_length': 10,
                 'max_length': 1000000
             },
             'rna_sequence': {
                 'required': False,
-                'pattern': r'^[AUGCaugc\s]+$',
+                'pattern': r'^[AUGCaugc\s]+\.{0,3}$',
                 'min_length': 10,
                 'max_length': 1000000
             },
