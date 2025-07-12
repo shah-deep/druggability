@@ -6,8 +6,8 @@
       0.0,
       0.0
     ],
-    "radius": 5.815541360845387,
-    "volume": 823.87,
+    "radius": 5.820259874920756,
+    "volume": 825.877,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 82,
@@ -35,8 +35,8 @@
       0.0,
       0.0
     ],
-    "radius": 3.7499318273357978,
-    "volume": 220.881,
+    "radius": 3.6877548533812186,
+    "volume": 210.075,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 34,
@@ -64,8 +64,8 @@
       0.0,
       0.0
     ],
-    "radius": 4.906403031642253,
-    "volume": 494.741,
+    "radius": 4.9545266419048835,
+    "volume": 509.442,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 36,
@@ -93,8 +93,8 @@
       0.0,
       0.0
     ],
-    "radius": 3.9149185246443086,
-    "volume": 251.337,
+    "radius": 3.9118735723517504,
+    "volume": 250.751,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 23,
@@ -122,66 +122,8 @@
       0.0,
       0.0
     ],
-    "radius": 2.964422026911644,
-    "volume": 109.121,
-    "surface_area": 0.0,
-    "druggability_score": 0.0,
-    "alpha_spheres": 20,
-    "mean_local_hyd_density": 10.0,
-    "mean_alpha_sphere_radius": 3.595,
-    "mean_alpha_sphere_surface_area": 0.0,
-    "apolar_alpha_sphere_prop": 0.55,
-    "hydrophobicity_score": 23.429,
-    "polarity_score": 4.0,
-    "volume_score": 4.429,
-    "charge_score": -1.0,
-    "proportion_polar_atm": 42.857,
-    "alpha_sphere_density": 1.801,
-    "center_of_mass": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "flexibility": 0.314
-  },
-  {
-    "pocket_id": 6,
-    "center": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "radius": 3.540892704802102,
-    "volume": 185.963,
-    "surface_area": 0.0,
-    "druggability_score": 0.0,
-    "alpha_spheres": 23,
-    "mean_local_hyd_density": 5.0,
-    "mean_alpha_sphere_radius": 3.838,
-    "mean_alpha_sphere_surface_area": 0.0,
-    "apolar_alpha_sphere_prop": 0.261,
-    "hydrophobicity_score": 6.0,
-    "polarity_score": 4.0,
-    "volume_score": 2.375,
-    "charge_score": -1.0,
-    "proportion_polar_atm": 47.368,
-    "alpha_sphere_density": 2.28,
-    "center_of_mass": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "flexibility": 0.189
-  },
-  {
-    "pocket_id": 7,
-    "center": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "radius": 5.1024716712874545,
-    "volume": 556.455,
+    "radius": 5.097625519430533,
+    "volume": 554.871,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 35,
@@ -203,43 +145,72 @@
     "flexibility": 0.465
   },
   {
+    "pocket_id": 6,
+    "center": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "radius": 2.971107975320332,
+    "volume": 109.861,
+    "surface_area": 0.0,
+    "druggability_score": 0.0,
+    "alpha_spheres": 20,
+    "mean_local_hyd_density": 10.0,
+    "mean_alpha_sphere_radius": 3.595,
+    "mean_alpha_sphere_surface_area": 0.0,
+    "apolar_alpha_sphere_prop": 0.55,
+    "hydrophobicity_score": 23.429,
+    "polarity_score": 4.0,
+    "volume_score": 4.429,
+    "charge_score": -1.0,
+    "proportion_polar_atm": 42.857,
+    "alpha_sphere_density": 1.801,
+    "center_of_mass": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flexibility": 0.314
+  },
+  {
+    "pocket_id": 7,
+    "center": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "radius": 3.5231595267665097,
+    "volume": 183.183,
+    "surface_area": 0.0,
+    "druggability_score": 0.0,
+    "alpha_spheres": 23,
+    "mean_local_hyd_density": 5.0,
+    "mean_alpha_sphere_radius": 3.838,
+    "mean_alpha_sphere_surface_area": 0.0,
+    "apolar_alpha_sphere_prop": 0.261,
+    "hydrophobicity_score": 6.0,
+    "polarity_score": 4.0,
+    "volume_score": 2.375,
+    "charge_score": -1.0,
+    "proportion_polar_atm": 47.368,
+    "alpha_sphere_density": 2.28,
+    "center_of_mass": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flexibility": 0.189
+  },
+  {
     "pocket_id": 8,
     "center": [
       0.0,
       0.0,
       0.0
     ],
-    "radius": 3.708070281651168,
-    "volume": 213.566,
-    "surface_area": 0.0,
-    "druggability_score": 0.0,
-    "alpha_spheres": 18,
-    "mean_local_hyd_density": 15.0,
-    "mean_alpha_sphere_radius": 3.968,
-    "mean_alpha_sphere_surface_area": 0.0,
-    "apolar_alpha_sphere_prop": 0.889,
-    "hydrophobicity_score": 38.667,
-    "polarity_score": 2.0,
-    "volume_score": 5.667,
-    "charge_score": 1.0,
-    "proportion_polar_atm": 25.0,
-    "alpha_sphere_density": 1.969,
-    "center_of_mass": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "flexibility": 0.477
-  },
-  {
-    "pocket_id": 9,
-    "center": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "radius": 4.620000081457476,
-    "volume": 413.061,
+    "radius": 4.619623496202994,
+    "volume": 412.96,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 15,
@@ -261,14 +232,14 @@
     "flexibility": 0.321
   },
   {
-    "pocket_id": 10,
+    "pocket_id": 9,
     "center": [
       0.0,
       0.0,
       0.0
     ],
-    "radius": 3.3047544525711015,
-    "volume": 151.184,
+    "radius": 3.291755483274644,
+    "volume": 149.407,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 18,
@@ -290,14 +261,14 @@
     "flexibility": 0.213
   },
   {
-    "pocket_id": 11,
+    "pocket_id": 10,
     "center": [
       0.0,
       0.0,
       0.0
     ],
-    "radius": 4.510107461992258,
-    "volume": 384.281,
+    "radius": 4.523980302943998,
+    "volume": 387.838,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 15,
@@ -319,14 +290,43 @@
     "flexibility": 0.345
   },
   {
+    "pocket_id": 11,
+    "center": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "radius": 3.847507751462048,
+    "volume": 238.576,
+    "surface_area": 0.0,
+    "druggability_score": 0.0,
+    "alpha_spheres": 16,
+    "mean_local_hyd_density": 10.0,
+    "mean_alpha_sphere_radius": 4.0,
+    "mean_alpha_sphere_surface_area": 0.0,
+    "apolar_alpha_sphere_prop": 0.688,
+    "hydrophobicity_score": -9.6,
+    "polarity_score": 5.0,
+    "volume_score": 5.4,
+    "charge_score": 1.0,
+    "proportion_polar_atm": 41.176,
+    "alpha_sphere_density": 2.272,
+    "center_of_mass": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flexibility": 0.495
+  },
+  {
     "pocket_id": 12,
     "center": [
       0.0,
       0.0,
       0.0
     ],
-    "radius": 4.0463939234898705,
-    "volume": 277.519,
+    "radius": 4.067748533003571,
+    "volume": 281.936,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 20,
@@ -354,8 +354,37 @@
       0.0,
       0.0
     ],
-    "radius": 3.9856026658237145,
-    "volume": 265.198,
+    "radius": 3.719511649867689,
+    "volume": 215.549,
+    "surface_area": 0.0,
+    "druggability_score": 0.0,
+    "alpha_spheres": 18,
+    "mean_local_hyd_density": 15.0,
+    "mean_alpha_sphere_radius": 3.968,
+    "mean_alpha_sphere_surface_area": 0.0,
+    "apolar_alpha_sphere_prop": 0.889,
+    "hydrophobicity_score": 38.667,
+    "polarity_score": 2.0,
+    "volume_score": 5.667,
+    "charge_score": 1.0,
+    "proportion_polar_atm": 25.0,
+    "alpha_sphere_density": 1.969,
+    "center_of_mass": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flexibility": 0.477
+  },
+  {
+    "pocket_id": 14,
+    "center": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "radius": 3.9314427087794077,
+    "volume": 254.533,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 20,
@@ -377,72 +406,14 @@
     "flexibility": 0.186
   },
   {
-    "pocket_id": 14,
-    "center": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "radius": 3.889236318766133,
-    "volume": 246.423,
-    "surface_area": 0.0,
-    "druggability_score": 0.0,
-    "alpha_spheres": 16,
-    "mean_local_hyd_density": 10.0,
-    "mean_alpha_sphere_radius": 4.0,
-    "mean_alpha_sphere_surface_area": 0.0,
-    "apolar_alpha_sphere_prop": 0.688,
-    "hydrophobicity_score": -9.6,
-    "polarity_score": 5.0,
-    "volume_score": 5.4,
-    "charge_score": 1.0,
-    "proportion_polar_atm": 41.176,
-    "alpha_sphere_density": 2.272,
-    "center_of_mass": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "flexibility": 0.495
-  },
-  {
     "pocket_id": 15,
     "center": [
       0.0,
       0.0,
       0.0
     ],
-    "radius": 3.587646281396869,
-    "volume": 193.427,
-    "surface_area": 0.0,
-    "druggability_score": 0.0,
-    "alpha_spheres": 19,
-    "mean_local_hyd_density": 9.0,
-    "mean_alpha_sphere_radius": 3.943,
-    "mean_alpha_sphere_surface_area": 0.0,
-    "apolar_alpha_sphere_prop": 0.526,
-    "hydrophobicity_score": 1.0,
-    "polarity_score": 4.0,
-    "volume_score": 3.5,
-    "charge_score": 0.0,
-    "proportion_polar_atm": 47.059,
-    "alpha_sphere_density": 2.018,
-    "center_of_mass": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "flexibility": 0.208
-  },
-  {
-    "pocket_id": 16,
-    "center": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "radius": 4.432075064636073,
-    "volume": 364.678,
+    "radius": 4.3697386642602885,
+    "volume": 349.506,
     "surface_area": 0.0,
     "druggability_score": 0.0,
     "alpha_spheres": 17,
@@ -462,5 +433,34 @@
       0.0
     ],
     "flexibility": 0.282
+  },
+  {
+    "pocket_id": 16,
+    "center": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "radius": 3.552690411805969,
+    "volume": 187.828,
+    "surface_area": 0.0,
+    "druggability_score": 0.0,
+    "alpha_spheres": 19,
+    "mean_local_hyd_density": 9.0,
+    "mean_alpha_sphere_radius": 3.943,
+    "mean_alpha_sphere_surface_area": 0.0,
+    "apolar_alpha_sphere_prop": 0.526,
+    "hydrophobicity_score": 1.0,
+    "polarity_score": 4.0,
+    "volume_score": 3.5,
+    "charge_score": 0.0,
+    "proportion_polar_atm": 47.059,
+    "alpha_sphere_density": 2.018,
+    "center_of_mass": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flexibility": 0.208
   }
 ]
