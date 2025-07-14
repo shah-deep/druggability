@@ -4,3 +4,6 @@ venv
 .vscode
 __pycache__
 /__pycache__
+cache\alphamissense\AlphaMissense_hg38.tsv
+cache\alphamissense\AlphaMissense_hg38.db
+cache\clinvar\clinvar_variant_summary.txt.gz
