@@ -15,6 +15,11 @@ import logging
 import hashlib
 from datetime import datetime
 import warnings
+import requests
+try:
+    from .transcript_resolver import TranscriptResolver
+except ImportError:
+    from transcript_resolver import TranscriptResolver
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -64,6 +69,7 @@ class EnhancedInputProcessor:
         self.config = config or self._get_default_config()
         self.logger = logging.getLogger(__name__)
         self.validation_rules = self._initialize_validation_rules()
+        self.transcript_resolver = TranscriptResolver()
         
     def _get_default_config(self) -> Dict:
         """Get default configuration"""
@@ -356,7 +362,10 @@ class EnhancedInputProcessor:
                     self.logger.warning(f"Could not load variants from file: {e}")
                     variants = []
             
-            processed.missense_variants = self._normalize_variants(variants)
+            normalized_variants = self._normalize_variants(variants)
+            
+            # Resolve transcript IDs for variants
+            processed.missense_variants = self._resolve_transcript_ids(normalized_variants)
             
         return processed
     
@@ -436,6 +445,12 @@ class EnhancedInputProcessor:
         
         return normalized
     
+    def _resolve_transcript_ids(self, variants: List[Dict]) -> List[Dict]:
+        """Resolve transcript IDs for variants using VEP API"""
+        return self.transcript_resolver.resolve_variants(variants)
+    
+
+    
     def _generate_input_hash(self, inputs: Dict[str, Any]) -> str:
         """Generate hash for input data"""
         # Create a stable representation of inputs
@@ -461,6 +476,11 @@ class EnhancedInputProcessor:
         # Add counts
         if processed_input.missense_variants:
             summary['variant_count'] = len(processed_input.missense_variants)
+            
+            # Add transcript resolution statistics
+            variants_with_transcripts = sum(1 for v in processed_input.missense_variants if v.get('transcript_id'))
+            summary['variants_with_transcript_ids'] = variants_with_transcripts
+            summary['transcript_resolution_rate'] = variants_with_transcripts / len(processed_input.missense_variants) if processed_input.missense_variants else 0.0
         
         if processed_input.dna_sequence:
             summary['dna_length'] = len(processed_input.dna_sequence)
@@ -494,6 +514,15 @@ class EnhancedInputProcessor:
                 'warnings': processed_input.validation_result.warnings
             } if processed_input.validation_result else None
         }
+        
+        # Add transcript resolution summary
+        if processed_input.missense_variants:
+            variants_with_transcripts = sum(1 for v in processed_input.missense_variants if v.get('transcript_id'))
+            output_data['transcript_resolution_summary'] = {
+                'total_variants': len(processed_input.missense_variants),
+                'variants_with_transcript_ids': variants_with_transcripts,
+                'transcript_resolution_rate': variants_with_transcripts / len(processed_input.missense_variants)
+            }
         
         with open(output_path, 'w') as f:
             json.dump(output_data, f, indent=2, default=str)

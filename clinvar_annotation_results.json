@@ -1,0 +1,50 @@
+{
+  "var_001": {
+    "gene": "TP53",
+    "protein_change": "p.Arg175His",
+    "clinical_significance": null,
+    "review_status": null,
+    "condition": null,
+    "variation_id": null,
+    "last_evaluated": null,
+    "submitter": null,
+    "star_rating": null,
+    "accession": null,
+    "source": "no_annotation",
+    "warnings": [
+      "No ClinVar annotation found for TP53 p.Arg175His"
+    ]
+  },
+  "var_002": {
+    "gene": "TP53",
+    "protein_change": "p.Arg273His",
+    "clinical_significance": null,
+    "review_status": null,
+    "condition": null,
+    "variation_id": null,
+    "last_evaluated": null,
+    "submitter": null,
+    "star_rating": null,
+    "accession": null,
+    "source": "no_annotation",
+    "warnings": [
+      "No ClinVar annotation found for TP53 p.Arg273His"
+    ]
+  },
+  "var_003": {
+    "gene": "CFTR",
+    "protein_change": "p.Phe508del",
+    "clinical_significance": null,
+    "review_status": null,
+    "condition": null,
+    "variation_id": null,
+    "last_evaluated": null,
+    "submitter": null,
+    "star_rating": null,
+    "accession": null,
+    "source": "no_annotation",
+    "warnings": [
+      "No ClinVar annotation found for CFTR p.Phe508del"
+    ]
+  }
+}

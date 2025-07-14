@@ -1,4 +1,4 @@
-# Updated requirements.txt for ITS4.2
+# Updated requirements.txt for ITS4.3
 biopython>=1.79
 mdtraj>=1.9.7
 scipy>=1.7.0
@@ -20,6 +20,10 @@ tqdm>=4.64.0
 
 # UI and visualization
 streamlit>=1.22.0
+
+# CADD Pathogenicity Scoring Dependencies
+# These are additional dependencies for the CADD pathogenicity scorer
+# Most are already included above, but explicitly listed for clarity
 
 # Optional ML model dependencies
 # tensorflow>=2.9.0  # For Enformer if using TF implementation
