@@ -29,6 +29,10 @@ streamlit>=1.22.0
 # tensorflow>=2.9.0  # For Enformer if using TF implementation
 # pytorch-lightning>=1.6.0  # For some models
 
+# Pathway Analysis Dependencies
+gseapy>=0.14.0
+networkx>=2.8.0
+
 # External tools (need to be installed separately)
 # fpocket: Protein pocket detection tool - installed via WSL Ubuntu
 # Installation: git clone https://github.com/Discngine/fpocket.git && cd fpocket && make && sudo make install

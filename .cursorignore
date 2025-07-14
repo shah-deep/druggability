@@ -3,3 +3,4 @@ venv
 __pycache__
 # cache\alphamissense\AlphaMissense_hg38.tsv
 # cache
+# cache/

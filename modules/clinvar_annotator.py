@@ -759,6 +759,7 @@ def main():
                     print(f"  - {warning}")
         else:
             print("No annotation result available for this variant.")
+        break
 
     print(f"\n{'='*80}")
 

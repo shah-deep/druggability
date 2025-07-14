@@ -123,7 +123,8 @@ class EnhancedInputProcessor:
                 'required': False,
                 'pattern': r'^[ATGCatgc\s]+\.{0,3}$',
                 'min_length': 10,
-                'max_length': 1000000
+                'max_length': 1000000,
+                'allow_file_path': True
             },
             'rna_sequence': {
                 'required': False,
@@ -232,6 +233,16 @@ class EnhancedInputProcessor:
             if not os.path.exists(str(value)):
                 errors.append(f"File '{value}' does not exist")
         
+        # Handle file paths for sequences
+        if rules.get('allow_file_path', False) and isinstance(value, str):
+            if os.path.exists(value):
+                # It's a valid file path, skip pattern and length validation
+                return {
+                    'is_valid': True,
+                    'errors': [],
+                    'warnings': []
+                }
+        
         # Pattern validation for sequences
         if 'pattern' in rules:
             import re
@@ -339,13 +350,31 @@ class EnhancedInputProcessor:
     def _process_sequence_inputs(self, inputs: Dict[str, Any], processed: ProcessedInput) -> ProcessedInput:
         """Process sequence inputs"""
         if 'dna_sequence' in inputs:
-            processed.dna_sequence = self._normalize_sequence(inputs['dna_sequence'])
+            dna_input = inputs['dna_sequence']
+            if isinstance(dna_input, str) and os.path.exists(dna_input):
+                # If it's a file path, store the path instead of loading the entire sequence
+                processed.dna_sequence = dna_input
+            else:
+                # If it's actual sequence data, normalize it
+                processed.dna_sequence = self._normalize_sequence(dna_input)
             
         if 'rna_sequence' in inputs:
-            processed.rna_sequence = self._normalize_sequence(inputs['rna_sequence'])
+            rna_input = inputs['rna_sequence']
+            if isinstance(rna_input, str) and os.path.exists(rna_input):
+                # If it's a file path, store the path instead of loading the entire sequence
+                processed.rna_sequence = rna_input
+            else:
+                # If it's actual sequence data, normalize it
+                processed.rna_sequence = self._normalize_sequence(rna_input)
             
         if 'protein_sequence' in inputs:
-            processed.protein_sequence = self._normalize_sequence(inputs['protein_sequence'])
+            protein_input = inputs['protein_sequence']
+            if isinstance(protein_input, str) and os.path.exists(protein_input):
+                # If it's a file path, store the path instead of loading the entire sequence
+                processed.protein_sequence = protein_input
+            else:
+                # If it's actual sequence data, normalize it
+                processed.protein_sequence = self._normalize_sequence(protein_input)
             
         return processed
     
@@ -483,7 +512,17 @@ class EnhancedInputProcessor:
             summary['transcript_resolution_rate'] = variants_with_transcripts / len(processed_input.missense_variants) if processed_input.missense_variants else 0.0
         
         if processed_input.dna_sequence:
-            summary['dna_length'] = len(processed_input.dna_sequence)
+            if os.path.exists(processed_input.dna_sequence):
+                # It's a file path, get file size instead of sequence length
+                try:
+                    file_size = os.path.getsize(processed_input.dna_sequence)
+                    summary['dna_file_size_bytes'] = file_size
+                    summary['dna_file_path'] = processed_input.dna_sequence
+                except OSError:
+                    summary['dna_file_path'] = processed_input.dna_sequence
+            else:
+                # It's actual sequence data
+                summary['dna_length'] = len(processed_input.dna_sequence)
         
         if processed_input.rna_sequence:
             summary['rna_length'] = len(processed_input.rna_sequence)

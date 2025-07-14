@@ -183,7 +183,7 @@ class VariantImpactAnalyzer:
             
             # Search for variants in the specified transcripts with matching position
             query = """
-                SELECT am_pathogenicity, am_class, uniprot_id, transcript_id
+                SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant
                 FROM alphamissense 
                 WHERE transcript_id IN ({})
                 AND protein_variant LIKE ?
@@ -197,6 +197,42 @@ class VariantImpactAnalyzer:
             params = vep_transcript_ids + [position_pattern]
             cursor.execute(query, params)
             matches = cursor.fetchall()
+            
+            # If too many matches, try to filter by exact protein_variant
+            if matches and len(matches) > 10:
+                # Try to match the full protein_change string (e.g., 'p.Glu23fs')
+                strict_query = """
+                    SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant
+                    FROM alphamissense 
+                    WHERE transcript_id IN ({})
+                    AND protein_variant = ?
+                    ORDER BY am_pathogenicity DESC
+                """.format(','.join(['?' for _ in vep_transcript_ids]))
+                strict_params = vep_transcript_ids + [protein_change]
+                cursor.execute(strict_query, strict_params)
+                strict_matches = cursor.fetchall()
+                if strict_matches:
+                    matches = strict_matches
+                else:
+                    # If strict matching fails, try filtering by pathogenicity score
+                    pathogenicity_query = """
+                        SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant
+                        FROM alphamissense 
+                        WHERE transcript_id IN ({})
+                        AND protein_variant LIKE ?
+                        AND am_pathogenicity > 0.8
+                        ORDER BY am_pathogenicity DESC
+                        LIMIT 10
+                    """.format(','.join(['?' for _ in vep_transcript_ids]))
+                    pathogenicity_params = vep_transcript_ids + [position_pattern]
+                    print(pathogenicity_query, pathogenicity_params)
+                    cursor.execute(pathogenicity_query, pathogenicity_params)
+                    pathogenicity_matches = cursor.fetchall()
+                    if pathogenicity_matches:
+                        matches = pathogenicity_matches
+                        result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
+                    else:
+                        result.warnings.append(f"Strict filtering by protein_variant and pathogenicity gave no results; using broader position-based matches.")
             
             if matches:
                 # Extract pathogenicity scores and classes
@@ -221,7 +257,7 @@ class VariantImpactAnalyzer:
                 logger.warning(f"No AlphaMissense matches found for {variant_id}")
             
             conn.close()
-            
+        
         except Exception as e:
             error_msg = f"Error analyzing AlphaMissense for {variant_id}: {str(e)}"
             result.warnings.append(error_msg)
@@ -254,7 +290,7 @@ def main():
     analyzer.save_results(results, "variant_impact_results.json")
     
     # Print summary
-    print(f"Analysis complete. Processed {len(results.get('variant_impact_analysis', {}).get('results', {}))} variants")
+    print(f"Analysis complete.")
     
     # Print sample results
     for variant_id, result in results.get('variant_impact_analysis', {}).get('results', {}).items():

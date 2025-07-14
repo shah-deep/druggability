@@ -1,0 +1,6 @@
+---
+description:  Use wsl with ".venv" activated to run commands
+globs:
+alwaysApply: true
+---
+Use wsl with ".venv" activated to run commands
