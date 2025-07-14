@@ -8,3 +8,4 @@ cache/cadd/cadd_cache.db
 cache/alphamissense/AlphaMissense_hg38.tsv
 cache/alphamissense/alphamissense_hg38.db
 cache/clinvar_variant_summary.txt.gz
+cache/alphamissense/alphamissense_hg38.db-journal
