@@ -260,15 +260,34 @@ class PathwayImpactAnalyzer:
         if enrichment_df.empty:
             return {}
         
+        # Handle different column names for FDR/p-value
+        fdr_col = None
+        if 'FDR q-val' in enrichment_df.columns:
+            fdr_col = 'FDR q-val'
+        elif 'Adjusted P-value' in enrichment_df.columns:
+            fdr_col = 'Adjusted P-value'
+        elif 'P-value' in enrichment_df.columns:
+            fdr_col = 'P-value'
+        
+        if fdr_col is None:
+            logger.warning("No FDR/p-value column found in enrichment results")
+            return {
+                'total_pathways': len(enrichment_df),
+                'significant_pathways': 0,
+                'top_pathways': enrichment_df.head(10).to_dict('records'),
+                'max_enrichment_score': 0,
+                'min_fdr': 1.0
+            }
+        
         # Filter significant results (FDR < 0.05)
-        significant = enrichment_df[enrichment_df['FDR q-val'] < 0.05]
+        significant = enrichment_df[enrichment_df[fdr_col] < 0.05]
         
         summary = {
             'total_pathways': len(enrichment_df),
             'significant_pathways': len(significant),
             'top_pathways': significant.head(10).to_dict('records') if not significant.empty else [],
-            'max_enrichment_score': enrichment_df['Enrichment Score'].max() if not enrichment_df.empty else 0,
-            'min_fdr': enrichment_df['FDR q-val'].min() if not enrichment_df.empty else 1.0
+            'max_enrichment_score': enrichment_df['Enrichment Score'].max() if 'Enrichment Score' in enrichment_df.columns else 0,
+            'min_fdr': enrichment_df[fdr_col].min() if not enrichment_df.empty else 1.0
         }
         
         return summary
@@ -295,11 +314,27 @@ class PathwayImpactAnalyzer:
                     pathway_name = pathway.get('Term', pathway.get('Name', '')).lower()
                     
                     for target, min_score in target_pathways.items():
-                        if target.replace('_', ' ') in pathway_name or target in pathway_name:
+                        # More flexible matching for pathway names
+                        target_terms = [
+                            target.replace('_', ' '),
+                            target.replace('_', ''),
+                            'p53 signaling pathway' if target == 'p53_signaling' else None,
+                            'apoptosis' if target == 'Apoptosis' else None,
+                            'dna repair' if target == 'DNA_repair' else None
+                        ]
+                        target_terms = [t for t in target_terms if t is not None]
+                        
+                        matched = any(term in pathway_name for term in target_terms)
+                        
+                        if matched:
                             # For ORA, use -log10(p-value) as score, for GSEA use Enrichment Score
                             if 'P-value' in pathway:
                                 # ORA result - convert p-value to score
                                 p_value = pathway.get('P-value', 1.0)
+                                score = -np.log10(p_value) if p_value > 0 else 10.0
+                            elif 'Adjusted P-value' in pathway:
+                                # ORA result with adjusted p-value
+                                p_value = pathway.get('Adjusted P-value', 1.0)
                                 score = -np.log10(p_value) if p_value > 0 else 10.0
                             else:
                                 # GSEA result
@@ -331,7 +366,7 @@ class PathwayImpactAnalyzer:
             validation_results[pathway] = {
                 'expected_min': min_score,
                 'actual_score': actual_score,
-                'passed': passed,
+                'passed': bool(passed),  # Convert to bool for JSON serialization
                 'status': 'PASS' if passed else 'FAIL'
             }
             
@@ -349,6 +384,7 @@ class PathwayImpactAnalyzer:
         Returns:
             Dict[str, Any]: Complete analysis report
         """
+        validation_results = self.validate_target_scores()
         report = {
             'analysis_timestamp': datetime.now().isoformat(),
             'input_file': self.input_file,
@@ -356,13 +392,13 @@ class PathwayImpactAnalyzer:
             'gene_count': len(self.gene_list),
             'enrichment_results': self.enrichment_results,
             'target_pathway_scores': self.pathway_scores,
-            'validation_results': self.validate_target_scores(),
+            'validation_results': validation_results,
             'summary': {
                 'total_pathways_analyzed': sum(len(r.get('enrichment_results', [])) 
                                              for r in self.enrichment_results.values()),
                 'significant_pathways': sum(r.get('summary', {}).get('significant_pathways', 0) 
                                          for r in self.enrichment_results.values()),
-                'target_pathways_passed': sum(1 for v in self.validate_target_scores().values() 
+                'target_pathways_passed': sum(1 for v in validation_results.values() 
                                             if v['passed'])
             }
         }

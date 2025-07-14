@@ -52,6 +52,7 @@
       ],
       "pathogenicity_score": 0.97995,
       "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "high",
       "clinvar_variation_id": "VCV000376649",
       "clinvar_annotation": "Pathogenic"
     },
@@ -110,6 +111,7 @@
       ],
       "pathogenicity_score": 0.6145,
       "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "low",
       "clinvar_variation_id": "VCV000462208",
       "clinvar_annotation": "Likely_Pathogenic"
     },
@@ -165,6 +167,7 @@
       ],
       "pathogenicity_score": 0.916975,
       "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "high",
       "clinvar_variation_id": "VCV003894528",
       "clinvar_annotation": "Pathogenic"
     },
@@ -223,6 +226,7 @@
       ],
       "pathogenicity_score": 0.8786,
       "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "low",
       "clinvar_variation_id": "VCV001755509",
       "clinvar_annotation": "Pathogenic"
     }
@@ -266,7 +270,7 @@
     "transcript_resolution_rate": 1.0
   },
   "variant_impact_analysis": {
-    "analysis_timestamp": "2025-07-14T13:36:01.356031",
+    "analysis_timestamp": "2025-07-14T13:57:49.009003",
     "total_variants": 4,
     "parallel_workers": 8
   }

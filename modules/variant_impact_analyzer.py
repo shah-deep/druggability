@@ -51,6 +51,7 @@ class AlphaMissenseResult:
     max_occurring_class: Optional[str] = None
     matching_transcripts: List[str] = field(default_factory=list)
     total_matches: int = 0
+    confidence: str = "low"  # "high", "medium", "low", "none"
     warnings: List[str] = field(default_factory=list)
 
 
@@ -85,6 +86,7 @@ class VariantImpactAnalyzer:
             raise FileNotFoundError(f"AlphaMissense database not found: {self.alphamissense_db_path}")
         
         logger.info(f"Variant Impact Analyzer initialized with {self.max_workers} workers")
+    
     def analyze_variants(self, input_file: str) -> Dict[str, Any]:
         """
         Analyze all variants in the processed input file using parallel processing
@@ -126,7 +128,8 @@ class VariantImpactAnalyzer:
                     # Add AlphaMissense results to variant
                     variant['pathogenicity_score'] = result.alphamissense.average_pathogenicity_score
                     variant['alphamissense_annotation'] = result.alphamissense.max_occurring_class.title() if result.alphamissense.max_occurring_class else None
-
+                    variant['alphamissense_confidence'] = result.alphamissense.confidence
+                    
                     # Add ClinVar results to variant
                     variant['clinvar_variation_id'] = result.clinvar.variation_id
                     variant['clinvar_annotation'] = result.clinvar.clinical_significance.title() if result.clinvar.clinical_significance else None
@@ -337,6 +340,21 @@ class SingleVariantAnalyzer:
         )
         return result
     
+    def _calculate_confidence(self, filtering_method: str, num_matches: int) -> str:
+        """Calculate confidence based on filtering method and match count"""
+        if num_matches == 0:
+            return "none"
+        if filtering_method == "exact":
+            return "high"
+        elif filtering_method == "ref_alt" and num_matches <= 10:
+            return "medium"
+        elif filtering_method == "ref_alt" and num_matches > 10:
+            return "low"
+        elif filtering_method == "pathogenicity":
+            return "low"
+        else:
+            return "low"
+
     def _analyze_alphamissense_sync(self, variant_id: str, gene: str, 
                                    protein_change: str, vep_transcript_ids: List[str], 
                                    variant_data: Optional[Dict] = None) -> AlphaMissenseResult:
@@ -388,6 +406,8 @@ class SingleVariantAnalyzer:
             params = vep_transcript_ids + [position_pattern]
             cursor.execute(query, params)
             matches = cursor.fetchall()
+            if matches and len(matches) < 10:
+                filtering_method = "exact"
             
             # If too many matches, try to filter by exact protein_variant
             if matches and len(matches) > 10:
@@ -404,6 +424,7 @@ class SingleVariantAnalyzer:
                 strict_matches = cursor.fetchall()
                 if strict_matches:
                     matches = strict_matches
+                    filtering_method = "exact"
                 else:
                     # If strict matching fails, try filtering by reference and alternate alleles
                     if variant_data and 'reference' in variant_data and 'alternate' in variant_data:
@@ -441,12 +462,15 @@ class SingleVariantAnalyzer:
                                 pathogenicity_matches = cursor.fetchall()
                                 if pathogenicity_matches:
                                     matches = pathogenicity_matches
+                                    filtering_method = "pathogenicity"
                                     result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
                                 else:
                                     matches = ref_alt_matches
+                                    filtering_method = "ref_alt"
                                     result.warnings.append(f"Pathogenicity filtering failed, using REF/ALT matches: {len(matches)} matches")
                             else:
                                 matches = ref_alt_matches
+                                filtering_method = "ref_alt"
                                 result.warnings.append(f"Filtered to {len(matches)} matches by reference/alternate alleles")
                         else:
                             # If reference/alternate filtering fails, try filtering by pathogenicity score
@@ -464,6 +488,7 @@ class SingleVariantAnalyzer:
                             pathogenicity_matches = cursor.fetchall()
                             if pathogenicity_matches:
                                 matches = pathogenicity_matches
+                                filtering_method = "pathogenicity"
                                 result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
                             else:
                                 result.warnings.append(f"Strict filtering by protein_variant, ref/alt alleles, and pathogenicity gave no results; using broader position-based matches.")
@@ -483,6 +508,7 @@ class SingleVariantAnalyzer:
                         pathogenicity_matches = cursor.fetchall()
                         if pathogenicity_matches:
                             matches = pathogenicity_matches
+                            filtering_method = "pathogenicity"
                             result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
                         else:
                             result.warnings.append(f"Strict filtering by protein_variant and pathogenicity gave no results; using broader position-based matches.")
@@ -516,6 +542,8 @@ class SingleVariantAnalyzer:
             result.warnings.append(error_msg)
             logger.error(error_msg)
         
+        # Calculate confidence
+        result.confidence = self._calculate_confidence(filtering_method, len(matches))
         return result
     
     async def _analyze_clinvar_async(self, variant: Dict) -> ClinVarAnnotation:
