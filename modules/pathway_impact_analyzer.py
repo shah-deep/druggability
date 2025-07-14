@@ -15,7 +15,6 @@ from datetime import datetime
 
 try:
     import gseapy as gp
-    from gseapy import GSEA
     GSEAPY_AVAILABLE = True
 except ImportError:
     GSEAPY_AVAILABLE = False
@@ -106,6 +105,10 @@ class PathwayImpactAnalyzer:
             logger.error("No gene list available. Run extract_gene_list() first.")
             return {}
         
+        if self.input_data is None:
+            logger.error("No input data available. Run load_input_data() first.")
+            return {}
+        
         gene_scores = {}
         
         if method.startswith("pathogenicity"):
@@ -116,7 +119,10 @@ class PathwayImpactAnalyzer:
                 gene = variant.get('gene', '')
                 pathogenicity_score = variant.get('pathogenicity_score')
                 
-                if gene and pathogenicity_score is not None:
+                if gene:
+                    # Handle null scores by using 0.5 as default
+                    if pathogenicity_score is None:
+                        pathogenicity_score = 0.5
                     per_gene.setdefault(gene, []).append(float(pathogenicity_score))
             
             # Aggregate scores based on method
@@ -148,7 +154,7 @@ class PathwayImpactAnalyzer:
             max_count = max(gene_variant_counts.values()) if gene_variant_counts else 1
             for gene in self.gene_list:
                 count = gene_variant_counts.get(gene, 0)
-                gene_scores[gene] = count / max_count
+                gene_scores[gene] = count / max_count if max_count > 0 else 0.0
                 
         elif method == "clinical_relevance":
             # Score based on clinical relevance (cancer-related genes get higher scores)
@@ -165,7 +171,7 @@ class PathwayImpactAnalyzer:
         return gene_scores
     
     def run_gsea_analysis(self, gene_scores: Dict[str, float], 
-                          gene_sets: List[str] = None) -> Dict[str, Any]:
+                          gene_sets: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Run GSEA analysis on the gene list.
         
@@ -197,12 +203,11 @@ class PathwayImpactAnalyzer:
                 # Use enrichr for ORA
                 from gseapy import enrichr
                 
-                results = {}
                 for gene_set in gene_sets:
                     try:
                         enr = enrichr(
                             gene_list=gene_list,
-                            gene_sets=[gene_set],
+                            gene_sets=gene_set,
                             organism='Human',
                             outdir=None,
                             no_plot=True
@@ -218,25 +223,35 @@ class PathwayImpactAnalyzer:
                         continue
                         
             else:
-                # For larger gene lists, use GSEA
-                logger.info(f"Large gene list ({len(gene_scores)} genes), using GSEA")
+                # For larger gene lists, use prerank (GSEApy's prerank, not GSEA class)
+                logger.info(f"Large gene list ({len(gene_scores)} genes), using prerank GSEA")
                 
-                # Create GSEA object (remove processes parameter)
-                gsea = GSEA(gene_sets=gene_sets, verbose=True)
-                
-                # Convert gene scores to pandas Series
+                # Convert gene scores to pandas DataFrame for prerank
                 gene_series = pd.Series(gene_scores)
+                prerank_df = gene_series.sort_values(ascending=False)
+                prerank_df = prerank_df.reset_index()
+                prerank_df.columns = ['gene_name', 'score']
                 
-                # Run enrichment analysis
-                enrichment_results = gsea.run(gene_series, method='gsea')
-                
-                # Extract results
+                # Run prerank for each gene set
                 for gene_set in gene_sets:
-                    if gene_set in enrichment_results.results:
-                        results[gene_set] = {
-                            'enrichment_results': enrichment_results.results[gene_set].to_dict('records'),
-                            'summary': self._summarize_enrichment(enrichment_results.results[gene_set])
-                        }
+                    try:
+                        prerank_res = gp.prerank(
+                            rnk=prerank_df,
+                            gene_sets=gene_set,
+                            processes=4,
+                            permutation_num=100,  # reduce for speed, increase for accuracy
+                            outdir=None,
+                            seed=42,
+                            verbose=False
+                        )
+                        if hasattr(prerank_res, 'res2d') and prerank_res.res2d is not None and not prerank_res.res2d.empty:
+                            results[gene_set] = {
+                                'enrichment_results': prerank_res.res2d.reset_index().to_dict('records'),
+                                'summary': self._summarize_enrichment(prerank_res.res2d)
+                            }
+                    except Exception as e:
+                        logger.warning(f"Failed to analyze {gene_set} with prerank: {e}")
+                        continue
             
             self.enrichment_results = results
             logger.info(f"Enrichment analysis completed for {len(results)} gene sets")
@@ -257,7 +272,7 @@ class PathwayImpactAnalyzer:
         Returns:
             Dict[str, Any]: Summary statistics
         """
-        if enrichment_df.empty:
+        if enrichment_df is None or enrichment_df.empty:
             return {}
         
         # Handle different column names for FDR/p-value
@@ -268,6 +283,8 @@ class PathwayImpactAnalyzer:
             fdr_col = 'Adjusted P-value'
         elif 'P-value' in enrichment_df.columns:
             fdr_col = 'P-value'
+        elif 'fdr' in enrichment_df.columns:
+            fdr_col = 'fdr'
         
         if fdr_col is None:
             logger.warning("No FDR/p-value column found in enrichment results")
@@ -282,11 +299,18 @@ class PathwayImpactAnalyzer:
         # Filter significant results (FDR < 0.05)
         significant = enrichment_df[enrichment_df[fdr_col] < 0.05]
         
+        # Try to get enrichment score column
+        es_col = None
+        for col in ['Enrichment Score', 'es', 'NES', 'nes']:
+            if col in enrichment_df.columns:
+                es_col = col
+                break
+        
         summary = {
             'total_pathways': len(enrichment_df),
             'significant_pathways': len(significant),
             'top_pathways': significant.head(10).to_dict('records') if not significant.empty else [],
-            'max_enrichment_score': enrichment_df['Enrichment Score'].max() if 'Enrichment Score' in enrichment_df.columns else 0,
+            'max_enrichment_score': enrichment_df[es_col].max() if es_col and es_col in enrichment_df.columns else 0,
             'min_fdr': enrichment_df[fdr_col].min() if not enrichment_df.empty else 1.0
         }
         
@@ -311,7 +335,14 @@ class PathwayImpactAnalyzer:
         for gene_set, results in self.enrichment_results.items():
             if 'enrichment_results' in results:
                 for pathway in results['enrichment_results']:
-                    pathway_name = pathway.get('Term', pathway.get('Name', '')).lower()
+                    # Try to get pathway name from possible columns
+                    pathway_name = (
+                        pathway.get('Term') or
+                        pathway.get('Name') or
+                        pathway.get('term_name') or
+                        pathway.get('Gene_set') or
+                        ''
+                    ).lower()
                     
                     for target, min_score in target_pathways.items():
                         # More flexible matching for pathway names
@@ -327,18 +358,30 @@ class PathwayImpactAnalyzer:
                         matched = any(term in pathway_name for term in target_terms)
                         
                         if matched:
-                            # For ORA, use -log10(p-value) as score, for GSEA use Enrichment Score
-                            if 'P-value' in pathway:
-                                # ORA result - convert p-value to score
+                            # For ORA, use -log10(p-value) as score, for GSEA use Enrichment Score or NES
+                            score = 0
+                            if 'P-value' in pathway and pathway.get('P-value') is not None:
                                 p_value = pathway.get('P-value', 1.0)
-                                score = -np.log10(p_value) if p_value > 0 else 10.0
-                            elif 'Adjusted P-value' in pathway:
-                                # ORA result with adjusted p-value
+                                try:
+                                    score = -np.log10(float(p_value)) if float(p_value) > 0 else 10.0
+                                except Exception:
+                                    score = 0
+                            elif 'Adjusted P-value' in pathway and pathway.get('Adjusted P-value') is not None:
                                 p_value = pathway.get('Adjusted P-value', 1.0)
-                                score = -np.log10(p_value) if p_value > 0 else 10.0
-                            else:
-                                # GSEA result
+                                try:
+                                    score = -np.log10(float(p_value)) if float(p_value) > 0 else 10.0
+                                except Exception:
+                                    score = 0
+                            elif 'Enrichment Score' in pathway and pathway.get('Enrichment Score') is not None:
                                 score = pathway.get('Enrichment Score', 0)
+                            elif 'NES' in pathway and pathway.get('NES') is not None:
+                                score = pathway.get('NES', 0)
+                            elif 'es' in pathway and pathway.get('es') is not None:
+                                score = pathway.get('es', 0)
+                            elif 'nes' in pathway and pathway.get('nes') is not None:
+                                score = pathway.get('nes', 0)
+                            else:
+                                score = 0
                             
                             pathway_scores[target] = score
                             logger.info(f"Found {target}: score = {score:.3f} (min expected: {min_score})")
@@ -374,7 +417,7 @@ class PathwayImpactAnalyzer:
         
         return validation_results
     
-    def generate_report(self, output_file: str = None) -> Dict[str, Any]:
+    def generate_report(self, output_file: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate comprehensive pathway impact report.
         
@@ -469,4 +512,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

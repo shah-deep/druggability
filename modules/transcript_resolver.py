@@ -25,11 +25,11 @@ class TranscriptResolver:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
         self.cache_file = self.cache_dir / "transcript_mappings.json"
-        self.cache = self._load_cache()
+        self.cache = {} #self._load_cache()
         
         # API rate limiting
-        self.request_delay = 0.1  # 100ms between requests
-        self.max_retries = 3
+        self.request_delay = 0.05  # 100ms between requests
+        self.max_retries = 1
         self.timeout = 30
         
         # Headers for API requests

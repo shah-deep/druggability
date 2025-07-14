@@ -7,7 +7,7 @@ Handles multi-modal input validation, preprocessing, and routing for mechanistic
 import os
 import json
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Tuple, Any
 from dataclasses import dataclass, field
@@ -16,6 +16,10 @@ import hashlib
 from datetime import datetime
 import warnings
 import requests
+import multiprocessing as mp
+import tempfile
+import pickle
+import shutil
 try:
     from .transcript_resolver import TranscriptResolver
 except ImportError:
@@ -70,6 +74,8 @@ class EnhancedInputProcessor:
         self.logger = logging.getLogger(__name__)
         self.validation_rules = self._initialize_validation_rules()
         self.transcript_resolver = TranscriptResolver()
+        # Set number of parallel workers for variant processing
+        self.max_workers = min(mp.cpu_count(), 8)  # Cap at 8 workers
         
     def _get_default_config(self) -> Dict:
         """Get default configuration"""
@@ -379,7 +385,7 @@ class EnhancedInputProcessor:
         return processed
     
     def _process_variant_inputs(self, inputs: Dict[str, Any], processed: ProcessedInput) -> ProcessedInput:
-        """Process variant inputs"""
+        """Process variant inputs with parallel transcript resolution"""
         if 'missense_variants' in inputs:
             variants = inputs['missense_variants']
             if isinstance(variants, str):
@@ -393,8 +399,12 @@ class EnhancedInputProcessor:
             
             normalized_variants = self._normalize_variants(variants)
             
-            # Resolve transcript IDs for variants
-            processed.missense_variants = self._resolve_transcript_ids(normalized_variants)
+            # Resolve transcript IDs for variants using parallel processing
+            if normalized_variants:
+                self.logger.info(f"Processing {len(normalized_variants)} variants with {self.max_workers} parallel workers")
+                processed.missense_variants = self._resolve_transcript_ids_parallel(normalized_variants)
+            else:
+                processed.missense_variants = []
             
         return processed
     
@@ -474,11 +484,112 @@ class EnhancedInputProcessor:
         
         return normalized
     
-    def _resolve_transcript_ids(self, variants: List[Dict]) -> List[Dict]:
-        """Resolve transcript IDs for variants using VEP API"""
-        return self.transcript_resolver.resolve_variants(variants)
-    
+    def _resolve_transcript_ids_parallel(self, variants: List[Dict]) -> List[Dict]:
+        """
+        Resolve transcript IDs for variants using parallel processing
+        
+        Args:
+            variants: List of variant dictionaries
+            
+        Returns:
+            List of variants with resolved transcript IDs
+        """
+        if not variants:
+            return []
+        
+        # Create temporary directory for inter-process communication
+        temp_dir = Path(tempfile.mkdtemp(prefix="variant_processing_"))
+        
+        try:
+            # Prepare arguments for each process
+            process_args = []
+            for i, variant in enumerate(variants):
+                # Create unique temp file for this variant
+                temp_file = temp_dir / f"variant_{i}_{variant['id']}.pkl"
+                process_args.append((variant, str(temp_file)))
+            
+            # Process variants in parallel
+            with mp.Pool(processes=self.max_workers) as pool:
+                pool.map(self._process_single_variant_worker, process_args)
+            
+            # Collect results from temp files
+            resolved_variants = []
+            for i, variant in enumerate(variants):
+                temp_file = temp_dir / f"variant_{i}_{variant['id']}.pkl"
+                if temp_file.exists():
+                    try:
+                        with open(temp_file, 'rb') as f:
+                            resolved_variant = pickle.load(f)
+                        resolved_variants.append(resolved_variant)
+                    except Exception as e:
+                        self.logger.error(f"Error loading result for {variant['id']}: {e}")
+                        # Add original variant if loading fails
+                        resolved_variants.append(variant)
+                else:
+                    # Add original variant if temp file doesn't exist
+                    resolved_variants.append(variant)
+            
+            return resolved_variants
+            
+        finally:
+            # Clean up temporary directory
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            self.logger.info(f"Cleaned up temporary directory: {temp_dir}")
 
+    @staticmethod
+    def _process_single_variant_worker(args: Tuple[Dict, str]) -> None:
+        """
+        Worker function to process a single variant in a separate process
+        
+        Args:
+            args: Tuple of (variant, temp_file_path)
+        """
+        variant, temp_file_path = args
+        variant_id = variant['id']
+        
+        try:
+            # Create transcript resolver instance for this process
+            resolver = TranscriptResolver()
+            
+            # Resolve transcript ID for this variant using the correct method
+            resolved_variant = EnhancedInputProcessor._resolve_single_variant_with_resolver(resolver, variant)
+            
+            # Save result to temp file
+            with open(temp_file_path, 'wb') as f:
+                pickle.dump(resolved_variant, f)
+                
+            logger.info(f"Processed variant {variant_id}")
+            
+        except Exception as e:
+            logger.error(f"Error processing variant {variant_id}: {e}")
+            # Save original variant if processing fails
+            with open(temp_file_path, 'wb') as f:
+                pickle.dump(variant, f)
+
+    @staticmethod
+    def _resolve_single_variant_with_resolver(resolver: TranscriptResolver, variant: Dict) -> Dict:
+        """
+        Resolve transcript ID for a single variant using the TranscriptResolver
+        
+        Args:
+            resolver: TranscriptResolver instance
+            variant: Variant dictionary
+            
+        Returns:
+            Variant dictionary with resolved transcript ID
+        """
+        # Use the resolve_variants method which handles everything internally
+        resolved_variants = resolver.resolve_variants([variant])
+        
+        # Return the first (and only) resolved variant
+        if resolved_variants:
+            return resolved_variants[0]
+        else:
+            return variant
+    
+    def _resolve_transcript_ids(self, variants: List[Dict]) -> List[Dict]:
+        """Resolve transcript IDs for variants using VEP API (sequential fallback)"""
+        return self.transcript_resolver.resolve_variants(variants)
     
     def _generate_input_hash(self, inputs: Dict[str, Any]) -> str:
         """Generate hash for input data"""
@@ -499,7 +610,8 @@ class EnhancedInputProcessor:
             'has_single_cell_data': processed_input.single_cell_data is not None,
             'input_hash': processed_input.input_hash,
             'processing_timestamp': processed_input.processing_timestamp,
-            'validation_passed': processed_input.validation_result.is_valid if processed_input.validation_result else False
+            'validation_passed': processed_input.validation_result.is_valid if processed_input.validation_result else False,
+            'parallel_workers': self.max_workers
         }
         
         # Add counts
@@ -551,7 +663,11 @@ class EnhancedInputProcessor:
                 'is_valid': processed_input.validation_result.is_valid,
                 'errors': processed_input.validation_result.errors,
                 'warnings': processed_input.validation_result.warnings
-            } if processed_input.validation_result else None
+            } if processed_input.validation_result else None,
+            'parallel_processing': {
+                'workers_used': self.max_workers,
+                'processing_method': 'parallel'
+            }
         }
         
         # Add transcript resolution summary
@@ -560,7 +676,8 @@ class EnhancedInputProcessor:
             output_data['transcript_resolution_summary'] = {
                 'total_variants': len(processed_input.missense_variants),
                 'variants_with_transcript_ids': variants_with_transcripts,
-                'transcript_resolution_rate': variants_with_transcripts / len(processed_input.missense_variants)
+                'transcript_resolution_rate': variants_with_transcripts / len(processed_input.missense_variants),
+                'processing_method': 'parallel'
             }
         
         with open(output_path, 'w') as f:
@@ -580,6 +697,7 @@ def main():
     parser.add_argument('--rna', help='RNA sequence')
     parser.add_argument('--protein', help='Protein sequence')
     parser.add_argument('--output', default='processed_input.json', help='Output file path')
+    parser.add_argument('--workers', type=int, default=8, help='Number of parallel workers')
     
     args = parser.parse_args()
     
@@ -601,6 +719,9 @@ def main():
     
     # Initialize processor
     processor = EnhancedInputProcessor()
+    processor.max_workers = 8
+    if args.workers:
+        processor.max_workers = args.workers
     
     # Process inputs
     processed_input = processor.process_inputs(inputs)

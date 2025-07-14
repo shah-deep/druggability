@@ -377,11 +377,17 @@ class SingleVariantAnalyzer:
             protein_change=protein_change
         )
         
+        filtering_method = "none"
+        matches = []
         try:
             # Extract position number from protein change
             position_match = re.search(r'(\d+)', protein_change)
             if not position_match:
                 result.warnings.append(f"Could not extract position from protein change: {protein_change}")
+                # If nothing works, default the pathogenic score to midway
+                result.average_pathogenicity_score = 0.5
+                result.confidence = "none"
+                result.warnings.append("Defaulted pathogenicity score to 0.5 due to inability to extract position.")
                 return result
             
             position_number = position_match.group(1)
@@ -534,6 +540,10 @@ class SingleVariantAnalyzer:
             else:
                 result.warnings.append(f"No AlphaMissense matches found for {variant_id}")
                 logger.warning(f"No AlphaMissense matches found for {variant_id}")
+                # If nothing works, default the pathogenic score to midway
+                result.average_pathogenicity_score = 0.5
+                result.confidence = "none"
+                result.warnings.append("Defaulted pathogenicity score to 0.5 due to no AlphaMissense matches found.")
             
             conn.close()
         
@@ -541,9 +551,14 @@ class SingleVariantAnalyzer:
             error_msg = f"Error analyzing AlphaMissense for {variant_id}: {str(e)}"
             result.warnings.append(error_msg)
             logger.error(error_msg)
-        
-        # Calculate confidence
-        result.confidence = self._calculate_confidence(filtering_method, len(matches))
+            # If nothing works, default the pathogenic score to midway
+            result.average_pathogenicity_score = 0.5
+            result.confidence = "none"
+            result.warnings.append("Defaulted pathogenicity score to 0.5 due to AlphaMissense error.")
+
+        # Calculate confidence if not already set (avoid overwriting if set above)
+        if not hasattr(result, "confidence") or result.confidence is None:
+            result.confidence = self._calculate_confidence(filtering_method, len(matches))
         return result
     
     async def _analyze_clinvar_async(self, variant: Dict) -> ClinVarAnnotation:
