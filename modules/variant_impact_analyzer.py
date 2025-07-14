@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import statistics
 from collections import Counter
+import argparse
 
 # Import the ClinVar annotator
 try:
@@ -225,7 +226,7 @@ class VariantImpactAnalyzer:
                         LIMIT 10
                     """.format(','.join(['?' for _ in vep_transcript_ids]))
                     pathogenicity_params = vep_transcript_ids + [position_pattern]
-                    print(pathogenicity_query, pathogenicity_params)
+                    # print(pathogenicity_query, pathogenicity_params)
                     cursor.execute(pathogenicity_query, pathogenicity_params)
                     pathogenicity_matches = cursor.fetchall()
                     if pathogenicity_matches:
@@ -281,27 +282,47 @@ class VariantImpactAnalyzer:
 
 def main():
     """Main function for testing"""
-    analyzer = VariantImpactAnalyzer()
+    
+    parser = argparse.ArgumentParser(description='Variant Impact Analyzer')
+    parser.add_argument('--input', '-i', default="processed_input.json", 
+                       help='Input file path (default: processed_input.json)')
+    parser.add_argument('--output', '-o', default="variant_impact_results.json", 
+                       help='Output file path (default: variant_impact_results.json)')
+    parser.add_argument('--db-path', default="cache/alphamissense/alphamissense_hg38.db",
+                       help='AlphaMissense database path (default: cache/alphamissense/alphamissense_hg38.db)')
+    
+    args = parser.parse_args()
+    
+    analyzer = VariantImpactAnalyzer(alphamissense_db_path=args.db_path)
     
     # Analyze variants
-    results = analyzer.analyze_variants("processed_input.json")
+    print(f"Analyzing variants from: {args.input}")
+    results = analyzer.analyze_variants(args.input)
     
     # Save results
-    analyzer.save_results(results, "variant_impact_results.json")
+    analyzer.save_results(results, args.output)
     
     # Print summary
-    print(f"Analysis complete.")
+    print(f"Analysis complete. Results saved to: {args.output}")
     
-    # Print sample results
-    for variant_id, result in results.get('variant_impact_analysis', {}).get('results', {}).items():
-        print(f"\nVariant: {variant_id}")
-        print(f"  Gene: {result.gene}")
-        print(f"  Protein Change: {result.protein_change}")
-        print(f"  AlphaMissense Score: {result.alphamissense.average_pathogenicity_score}")
-        print(f"  AlphaMissense Class: {result.alphamissense.max_occurring_class}")
-        print(f"  ClinVar Significance: {result.clinvar.clinical_significance}")
-        if result.alphamissense.warnings:
-            print(f"  Warnings: {result.alphamissense.warnings}")
+    # Print summary statistics
+    variants = results.get('missense_variants', [])
+    variants_with_scores = [v for v in variants if v.get('pathogenicity_score')]
+    
+    print(f"\nSummary:")
+    print(f"Total variants processed: {len(variants)}")
+    print(f"Variants with pathogenicity scores: {len(variants_with_scores)}")
+    
+    if variants_with_scores:
+        scores = [v['pathogenicity_score'] for v in variants_with_scores]
+        print(f"Average pathogenicity score: {sum(scores)/len(scores):.4f}")
+        print(f"Min pathogenicity score: {min(scores):.4f}")
+        print(f"Max pathogenicity score: {max(scores):.4f}")
+    
+    # Count genes
+    genes = set(v['gene'] for v in variants)
+    print(f"Unique genes: {len(genes)}")
+    print(f"Genes: {', '.join(sorted(genes))}")
 
 
 if __name__ == "__main__":

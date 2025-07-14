@@ -1,0 +1,402 @@
+[
+  {
+    "id": "var_001",
+    "position": 17498,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "TP53",
+    "protein_change": "p.Arg175His"
+  },
+  {
+    "id": "var_002",
+    "position": 32906,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "BRCA1",
+    "protein_change": "p.Cys61Gly"
+  },
+  {
+    "id": "var_003",
+    "position": 12345,
+    "reference": "A",
+    "alternate": "T",
+    "gene": "TP53",
+    "protein_change": "p.Arg273His"
+  },
+  {
+    "id": "var_004",
+    "position": 45678,
+    "reference": "C",
+    "alternate": "G",
+    "gene": "BRCA2",
+    "protein_change": "p.Asn372His"
+  },
+  {
+    "id": "var_005",
+    "position": 78901,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "ATM",
+    "protein_change": "p.Arg3008Cys"
+  },
+  {
+    "id": "var_006",
+    "position": 23456,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "CHEK2",
+    "protein_change": "p.Ile157Thr"
+  },
+  {
+    "id": "var_007",
+    "position": 56789,
+    "reference": "A",
+    "alternate": "G",
+    "gene": "MDM2",
+    "protein_change": "p.Pro309Ala"
+  },
+  {
+    "id": "var_008",
+    "position": 34567,
+    "reference": "C",
+    "alternate": "T",
+    "gene": "BAX",
+    "protein_change": "p.Gly67Arg"
+  },
+  {
+    "id": "var_009",
+    "position": 89012,
+    "reference": "G",
+    "alternate": "C",
+    "gene": "BCL2",
+    "protein_change": "p.Pro36Ala"
+  },
+  {
+    "id": "var_010",
+    "position": 12345,
+    "reference": "A",
+    "alternate": "T",
+    "gene": "CASP3",
+    "protein_change": "p.Asp175His"
+  },
+  {
+    "id": "var_011",
+    "position": 67890,
+    "reference": "T",
+    "alternate": "G",
+    "gene": "PARP1",
+    "protein_change": "p.Arg591Trp"
+  },
+  {
+    "id": "var_012",
+    "position": 45678,
+    "reference": "C",
+    "alternate": "A",
+    "gene": "RAD51",
+    "protein_change": "p.Arg264His"
+  },
+  {
+    "id": "var_013",
+    "position": 23456,
+    "reference": "G",
+    "alternate": "T",
+    "gene": "FAS",
+    "protein_change": "p.Arg234Trp"
+  },
+  {
+    "id": "var_014",
+    "position": 78901,
+    "reference": "A",
+    "alternate": "C",
+    "gene": "FASLG",
+    "protein_change": "p.Leu44Pro"
+  },
+  {
+    "id": "var_015",
+    "position": 34567,
+    "reference": "T",
+    "alternate": "A",
+    "gene": "TNF",
+    "protein_change": "p.Arg32Leu"
+  },
+  {
+    "id": "var_016",
+    "position": 56789,
+    "reference": "C",
+    "alternate": "G",
+    "gene": "TNFRSF10A",
+    "protein_change": "p.Arg376Gly"
+  },
+  {
+    "id": "var_017",
+    "position": 89012,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "TNFRSF10B",
+    "protein_change": "p.Arg234Gln"
+  },
+  {
+    "id": "var_018",
+    "position": 12345,
+    "reference": "A",
+    "alternate": "T",
+    "gene": "CDKN1A",
+    "protein_change": "p.Arg31Cys"
+  },
+  {
+    "id": "var_019",
+    "position": 67890,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "CDKN2A",
+    "protein_change": "p.Arg80Leu"
+  },
+  {
+    "id": "var_020",
+    "position": 45678,
+    "reference": "C",
+    "alternate": "A",
+    "gene": "RB1",
+    "protein_change": "p.Arg661Trp"
+  },
+  {
+    "id": "var_021",
+    "position": 23456,
+    "reference": "G",
+    "alternate": "T",
+    "gene": "MYC",
+    "protein_change": "p.Thr58Ala"
+  },
+  {
+    "id": "var_022",
+    "position": 78901,
+    "reference": "A",
+    "alternate": "G",
+    "gene": "CCND1",
+    "protein_change": "p.Pro287Ala"
+  },
+  {
+    "id": "var_023",
+    "position": 34567,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "CCNE1",
+    "protein_change": "p.Arg395Cys"
+  },
+  {
+    "id": "var_024",
+    "position": 56789,
+    "reference": "C",
+    "alternate": "G",
+    "gene": "CDK4",
+    "protein_change": "p.Arg24Cys"
+  },
+  {
+    "id": "var_025",
+    "position": 89012,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "CDK6",
+    "protein_change": "p.Arg31His"
+  },
+  {
+    "id": "var_026",
+    "position": 12345,
+    "reference": "A",
+    "alternate": "T",
+    "gene": "E2F1",
+    "protein_change": "p.Arg132Leu"
+  },
+  {
+    "id": "var_027",
+    "position": 67890,
+    "reference": "T",
+    "alternate": "G",
+    "gene": "E2F2",
+    "protein_change": "p.Arg117Ala"
+  },
+  {
+    "id": "var_028",
+    "position": 45678,
+    "reference": "C",
+    "alternate": "A",
+    "gene": "E2F3",
+    "protein_change": "p.Arg243Trp"
+  },
+  {
+    "id": "var_029",
+    "position": 23456,
+    "reference": "G",
+    "alternate": "T",
+    "gene": "PTEN",
+    "protein_change": "p.Arg130Gln"
+  },
+  {
+    "id": "var_030",
+    "position": 78901,
+    "reference": "A",
+    "alternate": "C",
+    "gene": "PIK3CA",
+    "protein_change": "p.Glu545Lys"
+  },
+  {
+    "id": "var_031",
+    "position": 34567,
+    "reference": "T",
+    "alternate": "A",
+    "gene": "AKT1",
+    "protein_change": "p.Glu17Lys"
+  },
+  {
+    "id": "var_032",
+    "position": 56789,
+    "reference": "C",
+    "alternate": "G",
+    "gene": "MTOR",
+    "protein_change": "p.Arg2500Pro"
+  },
+  {
+    "id": "var_033",
+    "position": 89012,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "RPS6KB1",
+    "protein_change": "p.Arg489His"
+  },
+  {
+    "id": "var_034",
+    "position": 12345,
+    "reference": "A",
+    "alternate": "T",
+    "gene": "EIF4EBP1",
+    "protein_change": "p.Thr37Ala"
+  },
+  {
+    "id": "var_035",
+    "position": 67890,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "RPS6",
+    "protein_change": "p.Ser235Phe"
+  },
+  {
+    "id": "var_036",
+    "position": 45678,
+    "reference": "C",
+    "alternate": "A",
+    "gene": "RPS6KA1",
+    "protein_change": "p.Arg772Leu"
+  },
+  {
+    "id": "var_037",
+    "position": 23456,
+    "reference": "G",
+    "alternate": "T",
+    "gene": "RPS6KA2",
+    "protein_change": "p.Arg383Cys"
+  },
+  {
+    "id": "var_038",
+    "position": 78901,
+    "reference": "A",
+    "alternate": "G",
+    "gene": "RPS6KA3",
+    "protein_change": "p.Arg447Ala"
+  },
+  {
+    "id": "var_039",
+    "position": 34567,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "RPS6KA4",
+    "protein_change": "p.Arg529His"
+  },
+  {
+    "id": "var_040",
+    "position": 56789,
+    "reference": "C",
+    "alternate": "G",
+    "gene": "RPS6KA5",
+    "protein_change": "p.Arg616Leu"
+  },
+  {
+    "id": "var_041",
+    "position": 89012,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "RPS6KA6",
+    "protein_change": "p.Arg486Cys"
+  },
+  {
+    "id": "var_042",
+    "position": 12345,
+    "reference": "A",
+    "alternate": "T",
+    "gene": "MAPK1",
+    "protein_change": "p.Thr185Ala"
+  },
+  {
+    "id": "var_043",
+    "position": 67890,
+    "reference": "T",
+    "alternate": "G",
+    "gene": "MAPK3",
+    "protein_change": "p.Tyr204Cys"
+  },
+  {
+    "id": "var_044",
+    "position": 45678,
+    "reference": "C",
+    "alternate": "A",
+    "gene": "MAP2K1",
+    "protein_change": "p.Arg49Trp"
+  },
+  {
+    "id": "var_045",
+    "position": 23456,
+    "reference": "G",
+    "alternate": "T",
+    "gene": "MAP2K2",
+    "protein_change": "p.Arg67Cys"
+  },
+  {
+    "id": "var_046",
+    "position": 78901,
+    "reference": "A",
+    "alternate": "C",
+    "gene": "RAF1",
+    "protein_change": "p.Arg389Leu"
+  },
+  {
+    "id": "var_047",
+    "position": 34567,
+    "reference": "T",
+    "alternate": "A",
+    "gene": "BRAF",
+    "protein_change": "p.Val600Glu"
+  },
+  {
+    "id": "var_048",
+    "position": 56789,
+    "reference": "C",
+    "alternate": "G",
+    "gene": "KRAS",
+    "protein_change": "p.Gly12Val"
+  },
+  {
+    "id": "var_049",
+    "position": 89012,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "NRAS",
+    "protein_change": "p.Gln61Lys"
+  },
+  {
+    "id": "var_050",
+    "position": 12345,
+    "reference": "A",
+    "alternate": "T",
+    "gene": "HRAS",
+    "protein_change": "p.Gly12Ser"
+  }
+] 
