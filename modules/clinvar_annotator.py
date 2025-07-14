@@ -6,8 +6,7 @@ A comprehensive module for annotating variants using ClinVar database.
 Supports multiple lookup strategies:
 1. Local ClinVar database cache
 2. NCBI ClinVar API
-3. Local variant summary file
-4. Fallback mechanisms
+3. Fallback mechanisms
 
 Example usage:
     annotator = ClinVarAnnotator()
@@ -28,7 +27,6 @@ import json
 import logging
 import requests
 import sqlite3
-import gzip
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
@@ -57,24 +55,21 @@ class ClinVarAnnotation:
     accession: Optional[str] = None
     classification_type: Optional[str] = None  # "germline", "somatic", "oncogenicity", "main"
     warnings: List[str] = field(default_factory=list)
-    source: str = "unknown"  # "local_cache", "api", "local_file", "fallback"
+    source: str = "unknown"  # "local_cache", "api", "fallback"
 
 
 class ClinVarAnnotator:
     """Comprehensive ClinVar variant annotator"""
     
-    def __init__(self, cache_dir: str = "cache/clinvar", 
-                 summary_file: str = "cache/clinvar_variant_summary.txt.gz"):
+    def __init__(self, cache_dir: str = "cache/clinvar"):
         """
         Initialize ClinVar annotator
         
         Args:
             cache_dir: Directory for caching ClinVar data
-            summary_file: Path to local ClinVar variant summary file
         """
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.summary_file = Path(summary_file)
         
         # API configuration
         self.api_base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -82,7 +77,6 @@ class ClinVarAnnotator:
         
         # Initialize components
         self._init_cache_db()
-        self._init_local_lookup()
         
         # Known pathogenic variants cache
         self.known_variants = self._init_known_variants()
@@ -130,72 +124,6 @@ class ClinVarAnnotator:
             
         except Exception as e:
             logger.error(f"Error initializing cache database: {e}")
-    
-    def _init_local_lookup(self):
-        """Initialize local ClinVar lookup from summary file"""
-        self.local_index = {}
-        if self.summary_file.exists():
-            try:
-                # self._build_local_index()
-                logger.info(f"Built local ClinVar index with {len(self.local_index)} entries")
-            except Exception as e:
-                logger.warning(f"Error building local index: {e}")
-    
-    def _build_local_index(self):
-        """Build index from local ClinVar summary file"""
-        # Check if index already exists and summary file hasn't changed
-        index_cache_file = self.cache_dir / "local_index_cache.json"
-        summary_mtime = self.summary_file.stat().st_mtime if self.summary_file.exists() else 0
-        
-        if index_cache_file.exists():
-            try:
-                with open(index_cache_file, 'r') as f:
-                    cache_data = json.load(f)
-                    if cache_data.get('summary_mtime', 0) == summary_mtime:
-                        self.local_index = cache_data.get('index', {})
-                        logger.info(f"Loaded cached local index with {len(self.local_index)} entries")
-                        return
-            except Exception as e:
-                logger.warning(f"Error loading cached index: {e}")
-        
-        # Build index from scratch
-        self.local_index = {}
-        if self.summary_file.exists():
-            with gzip.open(self.summary_file, 'rt', encoding='utf-8') as f:
-                header = next(f).strip().split('\t')
-                col_idx = {col: i for i, col in enumerate(header)}
-                
-                for line in f:
-                    fields = line.strip().split('\t')
-                    if len(fields) < len(header):
-                        continue
-                    
-                    gene = fields[col_idx.get('GeneSymbol', 0)]
-                    protein = fields[col_idx.get('Name', 1)]
-                    significance = fields[col_idx.get('ClinicalSignificance', 2)]
-                    variation_id = fields[col_idx.get('VariationID', 3)]
-                    
-                    if gene and protein:
-                        key = f"{gene}|{protein}"
-                        self.local_index[key] = {
-                            'significance': significance,
-                            'variation_id': variation_id,
-                            'raw': fields
-                        }
-            
-            # Cache the built index
-            try:
-                cache_data = {
-                    'summary_mtime': summary_mtime,
-                    'index': self.local_index
-                }
-                with open(index_cache_file, 'w') as f:
-                    json.dump(cache_data, f)
-                logger.info(f"Built and cached local ClinVar index with {len(self.local_index)} entries")
-            except Exception as e:
-                logger.warning(f"Error caching local index: {e}")
-        else:
-            logger.warning(f"ClinVar summary file not found: {self.summary_file}")
     
     def _init_known_variants(self) -> Dict[str, Dict]:
         """Initialize known pathogenic variants cache"""
@@ -253,23 +181,15 @@ class ClinVarAnnotator:
                 annotation.source = cached_result['source']
                 return annotation
             
-            # Strategy 3: Check local summary file
-            local_result = self._lookup_local(variant)
-            if local_result:
-                annotation.clinical_significance = local_result['significance']
-                annotation.variation_id = local_result['variation_id']
-                annotation.source = "local_file"
-                self._cache_annotation(variant, annotation)
-                return annotation
-            
-            # Strategy 4: Query ClinVar API
+            # Strategy 3: Query ClinVar API
             try:
                 api_result = self._query_clinvar_api(variant)
+                print(api_result)
                 if api_result:
                     annotation.clinical_significance = api_result['clinical_significance']
                     annotation.review_status = api_result['review_status']
                     annotation.condition = api_result['condition']
-                    annotation.variation_id = api_result['variation_id']
+                    annotation.variation_id = api_result.get('variation_id')  # Use get() to handle missing field
                     annotation.last_evaluated = api_result['last_evaluated']
                     annotation.submitter = api_result['submitter']
                     annotation.star_rating = api_result['star_rating']
@@ -282,7 +202,7 @@ class ClinVarAnnotator:
                 logger.warning(f"Error in API query for {variant_id}: {e}")
                 annotation.warnings.append(f"API query failed: {e}")
             
-            # Strategy 5: Fallback - no annotation found
+            # Strategy 4: Fallback - no annotation found
             annotation.warnings.append(f"No ClinVar annotation found for {gene} {protein_change}")
             annotation.source = "no_annotation"
             
@@ -328,26 +248,6 @@ class ClinVarAnnotator:
         
         return None
     
-    def _lookup_local(self, variant: Dict) -> Optional[Dict]:
-        """Lookup variant in local summary file"""
-        gene = variant.get('gene', '')
-        protein_change = variant.get('protein_change', '')
-        
-        if not gene or not protein_change:
-            return None
-        
-        # Try exact match
-        key = f"{gene}|{protein_change}"
-        if key in self.local_index:
-            return self.local_index[key]
-        
-        # Try partial match
-        for k, v in self.local_index.items():
-            if k.startswith(f"{gene}|") and protein_change in k:
-                return v
-        
-        return None
-    
     def _query_clinvar_api(self, variant: Dict) -> Optional[Dict]:
         """Query ClinVar API for variant information"""
         try:
@@ -361,7 +261,7 @@ class ClinVarAnnotator:
             for variant_id in variant_ids:
                 try:
                     result = self._get_clinvar_details(variant_id)
-                    logger.info(f"Processing variant ID: {variant_id}")
+                    logger.info(f"Processing variant ID: {variant_id}, Got result: {result}")
                     if result and result.get('clinical_significance') != 'Cannot_annotate':
                         logger.info(f"Found valid result for variant ID {variant_id}: {result.get('clinical_significance')}")
                         return result
@@ -417,9 +317,6 @@ class ClinVarAnnotator:
                 
                 if response.status_code == 200:
                     data = response.json()
-                    # Remove debug prints to reduce noise
-                    # print(data)
-                    # print("====")
                     if 'esearchresult' in data and 'idlist' in data['esearchresult']:
                         id_list = data['esearchresult']['idlist']
                         if id_list:
@@ -455,7 +352,7 @@ class ClinVarAnnotator:
             summary_response = requests.get(summary_url, params=summary_params, timeout=30)
             
             if summary_response.status_code == 200:
-                summary_data = summary_response.json()
+                summary_data = summary_response.json()               
                 if 'result' in summary_data and variant_id in summary_data['result']:
                     variant_data = summary_data['result'][variant_id]
                     logger.info(f"Successfully fetched ClinVar summary for variant ID: {variant_id}")
@@ -645,26 +542,65 @@ class ClinVarAnnotator:
         try:
             logger.info(f"ClinVar summary data structure: {list(variant_data.keys())}")
 
-            # Use germline_classification if present
-            clinical_significance = variant_data.get('germline_classification', None)
-            classification_type = 'germline'
-            if not clinical_significance or clinical_significance == '-' or clinical_significance is None:
-                # Fallback to somatic
-                clinical_significance = variant_data.get('clinical_impact_classification', None)
+            # Handle the actual API response structure
+            # Check for germline_classification first (most important)
+            germline_classification = variant_data.get('germline_classification', {})
+            if isinstance(germline_classification, dict) and germline_classification.get('description'):
+                clinical_significance = germline_classification.get('description', 'Cannot_annotate')
+                review_status = germline_classification.get('review_status', '')
+                last_evaluated = germline_classification.get('last_evaluated', '')
+                classification_type = 'germline'
+                
+                # Extract condition from trait_set if available
+                condition = ''
+                trait_set = germline_classification.get('trait_set', [])
+                if trait_set and len(trait_set) > 0:
+                    condition = trait_set[0].get('trait_name', '')
+            
+            # Fallback to clinical_impact_classification (somatic)
+            elif variant_data.get('clinical_impact_classification', {}).get('description'):
+                clinical_impact = variant_data.get('clinical_impact_classification', {})
+                clinical_significance = clinical_impact.get('description', 'Cannot_annotate')
+                review_status = clinical_impact.get('review_status', '')
+                last_evaluated = clinical_impact.get('last_evaluated', '')
                 classification_type = 'somatic'
-            if not clinical_significance or clinical_significance == '-' or clinical_significance is None:
-                # Fallback to oncogenicity
-                clinical_significance = variant_data.get('oncogenicity_classification', None)
+                
+                # Extract condition from trait_set if available
+                condition = ''
+                trait_set = clinical_impact.get('trait_set', [])
+                if trait_set and len(trait_set) > 0:
+                    condition = trait_set[0].get('trait_name', '')
+            
+            # Fallback to oncogenicity_classification
+            elif variant_data.get('oncogenicity_classification', {}).get('description'):
+                oncogenicity = variant_data.get('oncogenicity_classification', {})
+                clinical_significance = oncogenicity.get('description', 'Cannot_annotate')
+                review_status = oncogenicity.get('review_status', '')
+                last_evaluated = oncogenicity.get('last_evaluated', '')
                 classification_type = 'oncogenicity'
-            if not clinical_significance or clinical_significance == '-' or clinical_significance is None:
+                
+                # Extract condition from trait_set if available
+                condition = ''
+                trait_set = oncogenicity.get('trait_set', [])
+                if trait_set and len(trait_set) > 0:
+                    condition = trait_set[0].get('trait_name', '')
+            
+            # Final fallback
+            else:
                 clinical_significance = 'Cannot_annotate'
+                review_status = ''
+                last_evaluated = ''
+                condition = ''
                 classification_type = 'main'
 
-            review_status = variant_data.get('review_status', '')
-            condition = variant_data.get('condition', '')
-            last_evaluated = variant_data.get('last_evaluated', '')
+            # Get other fields
             submitter = variant_data.get('submitter', '')
             accession = variant_data.get('accession', '')
+            
+            # Extract variation_id from accession if available
+            variation_id = None
+            if accession and accession.startswith('VCV'):
+                variation_id = accession
 
             # Determine star rating based on review status
             star_rating = 1  # Default
@@ -680,15 +616,15 @@ class ClinVarAnnotator:
                 else:
                     star_rating = 0
 
-            # Prioritize Pathogenic if present
+            # Normalize clinical significance
             if clinical_significance != 'Cannot_annotate':
                 if 'Pathogenic' in clinical_significance:
                     clinical_significance = 'Pathogenic'
-                elif 'Likely_pathogenic' in clinical_significance:
+                elif 'Likely pathogenic' in clinical_significance:
                     clinical_significance = 'Likely_pathogenic'
-                elif 'Uncertain_significance' in clinical_significance:
+                elif 'Uncertain significance' in clinical_significance:
                     clinical_significance = 'Uncertain_significance'
-                elif 'Likely_benign' in clinical_significance:
+                elif 'Likely benign' in clinical_significance:
                     clinical_significance = 'Likely_benign'
                 elif 'Benign' in clinical_significance:
                     clinical_significance = 'Benign'
@@ -697,6 +633,7 @@ class ClinVarAnnotator:
                 'clinical_significance': clinical_significance,
                 'review_status': review_status,
                 'condition': condition,
+                'variation_id': variation_id,
                 'last_evaluated': last_evaluated,
                 'submitter': submitter,
                 'star_rating': star_rating,
@@ -772,85 +709,59 @@ class ClinVarAnnotator:
 
 
 def main():
-    """Test the ClinVar annotator with the provided example"""
-    
-    # Example variant from the user
-    test_variant = {
-        "id": "var_001",
-        "position": 7675088,
-        "reference": "G",
-        "alternate": "A",
-        "gene": "TP53",
-        "protein_change": "p.Arg175His",
-        "chromosome": "17",
-        "transcript": "",
-        "transcript_id": "ENST00000269305",
-        "vep_transcript_ids": [
-            "ENST00000269305",
-            "ENST00000359597",
-            "ENST00000413465",
-            "ENST00000420246",
-            "ENST00000445888",
-            "ENST00000455263",
-            "ENST00000503591",
-            "ENST00000504290",
-            "ENST00000504937",
-            "ENST00000505014",
-            "ENST00000508793",
-            "ENST00000509690",
-            "ENST00000510385",
-            "ENST00000514944",
-            "ENST00000574684",
-            "ENST00000576024",
-            "ENST00000604348",
-            "ENST00000610292",
-            "ENST00000610538",
-            "ENST00000610623",
-            "ENST00000618944",
-            "ENST00000619186",
-            "ENST00000619485",
-            "ENST00000620739",
-            "ENST00000622645",
-            "ENST00000635293",
-            "ENST00000714356",
-            "ENST00000714357",
-            "ENST00000714358",
-            "ENST00000714359",
-            "ENST00000714408",
-            "ENST00000714409"
-        ]
-    }
-    
+    """Test the ClinVar annotator with all 4 variants from processed_input.json"""
+
+    import json
+    import os
+
+    # Load the variants from processed_input.json
+    input_path = os.path.join(os.path.dirname(__file__), "../processed_input.json")
+    with open(input_path, "r") as f:
+        data = json.load(f)
+    variants = data.get("missense_variants", [])
+
+    if not variants:
+        print("No missense variants found in processed_input.json")
+        return
+
     # Initialize annotator
-    annotator = ClinVarAnnotator()
-    
-    # Annotate the variant
-    result = annotator.annotate_variant(test_variant)
-    
-    # Print results
+    annotator = ClinVarAnnotator("../cache/clinvar")
+
+    # Annotate all variants
+    results = annotator.annotate_variants(variants)
+
     print(f"\n{'='*80}")
-    print("CLINVAR ANNOTATION RESULTS")
+    print("CLINVAR ANNOTATION RESULTS FOR ALL VARIANTS")
     print(f"{'='*80}")
-    print(f"Variant ID: {result.variant_id}")
-    print(f"Gene: {result.gene}")
-    print(f"Protein Change: {result.protein_change}")
-    print(f"Clinical Significance: {result.clinical_significance}")
-    print(f"Review Status: {result.review_status}")
-    print(f"Condition: {result.condition}")
-    print(f"Variation ID: {result.variation_id}")
-    print(f"Last Evaluated: {result.last_evaluated}")
-    print(f"Submitter: {result.submitter}")
-    print(f"Star Rating: {result.star_rating}")
-    print(f"Accession: {result.accession}")
-    print(f"Source: {result.source}")
-    
-    if result.warnings:
-        print(f"\nWarnings:")
-        for warning in result.warnings:
-            print(f"  - {warning}")
-    
+
+    for variant in variants:
+        variant_id = variant.get("id", "unknown")
+        result = results.get(variant_id)
+        print(f"\n{'-'*60}")
+        print(f"Variant ID: {variant_id}")
+        if result is not None:
+            print(f"Gene: {getattr(result, 'gene', None)}")
+            print(f"Protein Change: {getattr(result, 'protein_change', None)}")
+            print(f"Clinical Significance: {getattr(result, 'clinical_significance', None)}")
+            print(f"Review Status: {getattr(result, 'review_status', None)}")
+            print(f"Condition: {getattr(result, 'condition', None)}")
+            print(f"Variation ID: {getattr(result, 'variation_id', None)}")
+            print(f"Last Evaluated: {getattr(result, 'last_evaluated', None)}")
+            print(f"Submitter: {getattr(result, 'submitter', None)}")
+            print(f"Star Rating: {getattr(result, 'star_rating', None)}")
+            print(f"Accession: {getattr(result, 'accession', None)}")
+            print(f"Source: {getattr(result, 'source', None)}")
+
+            warnings = getattr(result, 'warnings', None)
+            if warnings:
+                print(f"\nWarnings:")
+                for warning in warnings:
+                    print(f"  - {warning}")
+        else:
+            print("No annotation result available for this variant.")
+
     print(f"\n{'='*80}")
 
 
 if __name__ == "__main__":
-    main() 
+    main()
