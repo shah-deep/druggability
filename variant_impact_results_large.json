@@ -108,7 +108,7 @@
         "ENST00000700185",
         "ENST00000700186"
       ],
-      "pathogenicity_score": 0.99002,
+      "pathogenicity_score": 0.6145,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV000462208",
       "clinvar_annotation": "Likely_Pathogenic"
@@ -194,7 +194,7 @@
         "ENST00000700203",
         "ENST00000533776"
       ],
-      "pathogenicity_score": 0.12535384615384615,
+      "pathogenicity_score": 0.0949,
       "alphamissense_annotation": "Likely_Benign",
       "clinvar_variation_id": "VCV000009329",
       "clinvar_annotation": "Benign"
@@ -398,7 +398,7 @@
         "ENST00000503726",
         "ENST00000513217"
       ],
-      "pathogenicity_score": 0.9750333333333333,
+      "pathogenicity_score": 0.6106,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV000009513",
       "clinvar_annotation": "Pathogenic"
@@ -424,8 +424,8 @@
         "ENST00000590515",
         "ENST00000589955"
       ],
-      "pathogenicity_score": 0.93285,
-      "alphamissense_annotation": "Likely_Pathogenic",
+      "pathogenicity_score": 0.1886,
+      "alphamissense_annotation": "Likely_Benign",
       "clinvar_variation_id": "VCV003906919",
       "clinvar_annotation": "Pathogenic"
     },
@@ -620,7 +620,7 @@
         "ENST00000367721",
         "ENST00000340030"
       ],
-      "pathogenicity_score": 0.8468,
+      "pathogenicity_score": 0.5758,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV003905909",
       "clinvar_annotation": "Likely_Pathogenic"
@@ -639,8 +639,8 @@
         "ENST00000449264",
         "ENST00000699334"
       ],
-      "pathogenicity_score": 0.9334625,
-      "alphamissense_annotation": "Likely_Pathogenic",
+      "pathogenicity_score": 0.3776,
+      "alphamissense_annotation": "Likely_Benign",
       "clinvar_variation_id": "VCV003911279",
       "clinvar_annotation": "Uncertain_Significance"
     },
@@ -710,7 +710,7 @@
         "ENST00000478800",
         "ENST00000462537"
       ],
-      "pathogenicity_score": 0.09257142857142857,
+      "pathogenicity_score": 0.08,
       "alphamissense_annotation": "Likely_Benign",
       "clinvar_variation_id": "VCV003839832",
       "clinvar_annotation": "Uncertain_Significance"
@@ -803,8 +803,8 @@
         "ENST00000707116",
         "ENST00000707117"
       ],
-      "pathogenicity_score": 0.93223,
-      "alphamissense_annotation": "Likely_Pathogenic",
+      "pathogenicity_score": 0.2817,
+      "alphamissense_annotation": "Likely_Benign",
       "clinvar_variation_id": "VCV002658815",
       "clinvar_annotation": "Pathogenic"
     },
@@ -882,8 +882,8 @@
         "ENST00000552862",
         "ENST00000547853"
       ],
-      "pathogenicity_score": 0.93895,
-      "alphamissense_annotation": "Likely_Pathogenic",
+      "pathogenicity_score": 0.36709,
+      "alphamissense_annotation": "Ambiguous",
       "clinvar_variation_id": "VCV000016928",
       "clinvar_annotation": "Pathogenic"
     },
@@ -904,8 +904,8 @@
         "ENST00000473078",
         "ENST00000491250"
       ],
-      "pathogenicity_score": 0.96258,
-      "alphamissense_annotation": "Likely_Pathogenic",
+      "pathogenicity_score": 0.18848571428571428,
+      "alphamissense_annotation": "Likely_Benign",
       "clinvar_variation_id": "VCV003391896",
       "clinvar_annotation": "Pathogenic"
     },
@@ -1067,8 +1067,8 @@
         "ENST00000556836",
         "ENST00000555380"
       ],
-      "pathogenicity_score": 0.99977,
-      "alphamissense_annotation": "Likely_Pathogenic",
+      "pathogenicity_score": 0.39436666666666664,
+      "alphamissense_annotation": "Likely_Benign",
       "clinvar_variation_id": "VCV000013983",
       "clinvar_annotation": "Pathogenic"
     },
@@ -1431,7 +1431,7 @@
         "ENST00000687481",
         "ENST00000688689"
       ],
-      "pathogenicity_score": 0.99792,
+      "pathogenicity_score": 0.9967,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV003902878",
       "clinvar_annotation": "Uncertain_Significance"
@@ -1463,7 +1463,7 @@
         "ENST00000597008",
         "ENST00000599345"
       ],
-      "pathogenicity_score": 0.95609,
+      "pathogenicity_score": 0.3395,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV003906711",
       "clinvar_annotation": "Uncertain_Significance"
@@ -1623,7 +1623,7 @@
         "ENST00000686969",
         "ENST00000556131"
       ],
-      "pathogenicity_score": 0.99203,
+      "pathogenicity_score": 0.8123625,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV000012584",
       "clinvar_annotation": "Pathogenic"
@@ -1668,7 +1668,7 @@
         "ENST00000468682",
         "ENST00000482021"
       ],
-      "pathogenicity_score": 0.98841,
+      "pathogenicity_score": 0.729025,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV000012612",
       "clinvar_annotation": "Pathogenic"
@@ -1682,7 +1682,7 @@
   "processing_timestamp": "2025-07-14T12:34:43.035498",
   "validation_result": "InputValidationResult(is_valid=True, errors=[], warnings=[\"Model 'enformer' (genotype_models) cannot run: missing dna_sequence\", \"Model 'bigrna' (genotype_models) cannot run: missing rna_sequence\", \"Model 'genegenie' (genotype_models) cannot run: missing dna_sequence\", \"Model 'scgpt' (simulation_models) cannot run: missing single_cell_data\", \"Model 'scfoundation' (simulation_models) cannot run: missing single_cell_data\", \"Model 'octo' (simulation_models) cannot run: missing clinical_data\", \"Model 'proteinmpnn' (structure_models) cannot run: missing protein_sequence\", \"Model 'esm3' (structure_models) cannot run: missing protein_sequence\", \"Model 'atom1' (structure_models) cannot run: missing rna_sequence\", \"Model 'arteraai' (biomarker_models) cannot run: missing clinical_data\", \"Model 'cobrapy' (metabolic_models) cannot run: missing dna_sequence\"], metadata={})",
   "variant_impact_analysis": {
-    "analysis_timestamp": "2025-07-14T13:07:31.517990",
+    "analysis_timestamp": "2025-07-14T13:36:16.494559",
     "total_variants": 50,
     "parallel_workers": 8
   }

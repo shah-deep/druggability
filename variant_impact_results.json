@@ -108,7 +108,7 @@
         "ENST00000700185",
         "ENST00000700186"
       ],
-      "pathogenicity_score": 0.99002,
+      "pathogenicity_score": 0.6145,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV000462208",
       "clinvar_annotation": "Likely_Pathogenic"
@@ -221,7 +221,7 @@
         "ENST00000700185",
         "ENST00000700186"
       ],
-      "pathogenicity_score": 0.93814,
+      "pathogenicity_score": 0.8786,
       "alphamissense_annotation": "Likely_Pathogenic",
       "clinvar_variation_id": "VCV001755509",
       "clinvar_annotation": "Pathogenic"
@@ -266,7 +266,7 @@
     "transcript_resolution_rate": 1.0
   },
   "variant_impact_analysis": {
-    "analysis_timestamp": "2025-07-14T13:06:42.646730",
+    "analysis_timestamp": "2025-07-14T13:36:01.356031",
     "total_variants": 4,
     "parallel_workers": 8
   }

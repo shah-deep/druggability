@@ -272,7 +272,7 @@ class SingleVariantAnalyzer:
         
         # Run AlphaMissense and ClinVar analysis concurrently
         alphamissense_task = asyncio.create_task(
-            self._analyze_alphamissense_async(variant_id, gene, protein_change, vep_transcript_ids)
+            self._analyze_alphamissense_async(variant_id, gene, protein_change, vep_transcript_ids, variant)
         )
         clinvar_task = asyncio.create_task(
             self._analyze_clinvar_async(variant)
@@ -315,7 +315,8 @@ class SingleVariantAnalyzer:
         )
     
     async def _analyze_alphamissense_async(self, variant_id: str, gene: str, 
-                                          protein_change: str, vep_transcript_ids: List[str]) -> AlphaMissenseResult:
+                                          protein_change: str, vep_transcript_ids: List[str], 
+                                          variant_data: Optional[Dict] = None) -> AlphaMissenseResult:
         """
         Analyze variant using AlphaMissense database asynchronously
         
@@ -324,6 +325,7 @@ class SingleVariantAnalyzer:
             gene: Gene name
             protein_change: Protein change (e.g., "p.Arg175His")
             vep_transcript_ids: List of transcript IDs to search
+            variant_data: Optional variant data containing reference and alternate alleles
             
         Returns:
             AlphaMissenseResult with analysis results
@@ -331,12 +333,13 @@ class SingleVariantAnalyzer:
         # Run database query in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
-            None, self._analyze_alphamissense_sync, variant_id, gene, protein_change, vep_transcript_ids
+            None, self._analyze_alphamissense_sync, variant_id, gene, protein_change, vep_transcript_ids, variant_data
         )
         return result
     
     def _analyze_alphamissense_sync(self, variant_id: str, gene: str, 
-                                   protein_change: str, vep_transcript_ids: List[str]) -> AlphaMissenseResult:
+                                   protein_change: str, vep_transcript_ids: List[str], 
+                                   variant_data: Optional[Dict] = None) -> AlphaMissenseResult:
         """
         Synchronous AlphaMissense analysis (runs in thread pool)
         
@@ -345,6 +348,7 @@ class SingleVariantAnalyzer:
             gene: Gene name
             protein_change: Protein change (e.g., "p.Arg175His")
             vep_transcript_ids: List of transcript IDs to search
+            variant_data: Optional variant data containing reference and alternate alleles
             
         Returns:
             AlphaMissenseResult with analysis results
@@ -370,7 +374,7 @@ class SingleVariantAnalyzer:
             
             # Search for variants in the specified transcripts with matching position
             query = """
-                SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant
+                SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant, REF, ALT
                 FROM alphamissense 
                 WHERE transcript_id IN ({})
                 AND protein_variant LIKE ?
@@ -389,7 +393,7 @@ class SingleVariantAnalyzer:
             if matches and len(matches) > 10:
                 # Try to match the full protein_change string (e.g., 'p.Glu23fs')
                 strict_query = """
-                    SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant
+                    SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant, REF, ALT
                     FROM alphamissense 
                     WHERE transcript_id IN ({})
                     AND protein_variant = ?
@@ -401,24 +405,87 @@ class SingleVariantAnalyzer:
                 if strict_matches:
                     matches = strict_matches
                 else:
-                    # If strict matching fails, try filtering by pathogenicity score
-                    pathogenicity_query = """
-                        SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant
-                        FROM alphamissense 
-                        WHERE transcript_id IN ({})
-                        AND protein_variant LIKE ?
-                        AND am_pathogenicity > 0.8
-                        ORDER BY am_pathogenicity DESC
-                        LIMIT 10
-                    """.format(','.join(['?' for _ in vep_transcript_ids]))
-                    pathogenicity_params = vep_transcript_ids + [position_pattern]
-                    cursor.execute(pathogenicity_query, pathogenicity_params)
-                    pathogenicity_matches = cursor.fetchall()
-                    if pathogenicity_matches:
-                        matches = pathogenicity_matches
-                        result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
+                    # If strict matching fails, try filtering by reference and alternate alleles
+                    if variant_data and 'reference' in variant_data and 'alternate' in variant_data:
+                        ref_allele = variant_data['reference']
+                        alt_allele = variant_data['alternate']
+                        
+                        ref_alt_query = """
+                            SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant, REF, ALT
+                            FROM alphamissense 
+                            WHERE transcript_id IN ({})
+                            AND protein_variant LIKE ?
+                            AND REF = ?
+                            AND ALT = ?
+                            ORDER BY am_pathogenicity DESC
+                        """.format(','.join(['?' for _ in vep_transcript_ids]))
+                        ref_alt_params = vep_transcript_ids + [position_pattern, ref_allele, alt_allele]
+                        cursor.execute(ref_alt_query, ref_alt_params)
+                        ref_alt_matches = cursor.fetchall()
+                        if ref_alt_matches:
+                            if len(ref_alt_matches) > 10:
+                                result.warnings.append(f"REF/ALT filtering successful but too many matches ({len(ref_alt_matches)}), applying pathogenicity filtering")
+                                # Filter by pathogenicity score on REF/ALT matches
+                                pathogenicity_query = """
+                                    SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant, REF, ALT
+                                    FROM alphamissense 
+                                    WHERE transcript_id IN ({})
+                                    AND protein_variant LIKE ?
+                                    AND REF = ?
+                                    AND ALT = ?
+                                    ORDER BY am_pathogenicity DESC
+                                    LIMIT 1
+                                """.format(','.join(['?' for _ in vep_transcript_ids]))
+                                pathogenicity_params = vep_transcript_ids + [position_pattern, ref_allele, alt_allele]
+                                cursor.execute(pathogenicity_query, pathogenicity_params)
+                                pathogenicity_matches = cursor.fetchall()
+                                if pathogenicity_matches:
+                                    matches = pathogenicity_matches
+                                    result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
+                                else:
+                                    matches = ref_alt_matches
+                                    result.warnings.append(f"Pathogenicity filtering failed, using REF/ALT matches: {len(matches)} matches")
+                            else:
+                                matches = ref_alt_matches
+                                result.warnings.append(f"Filtered to {len(matches)} matches by reference/alternate alleles")
+                        else:
+                            # If reference/alternate filtering fails, try filtering by pathogenicity score
+                            pathogenicity_query = """
+                                SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant, REF, ALT
+                                FROM alphamissense 
+                                WHERE transcript_id IN ({})
+                                AND protein_variant LIKE ?
+                                AND am_pathogenicity > 0.8
+                                ORDER BY am_pathogenicity DESC
+                                LIMIT 10
+                            """.format(','.join(['?' for _ in vep_transcript_ids]))
+                            pathogenicity_params = vep_transcript_ids + [position_pattern]
+                            cursor.execute(pathogenicity_query, pathogenicity_params)
+                            pathogenicity_matches = cursor.fetchall()
+                            if pathogenicity_matches:
+                                matches = pathogenicity_matches
+                                result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
+                            else:
+                                result.warnings.append(f"Strict filtering by protein_variant, ref/alt alleles, and pathogenicity gave no results; using broader position-based matches.")
                     else:
-                        result.warnings.append(f"Strict filtering by protein_variant and pathogenicity gave no results; using broader position-based matches.")
+                        # If no variant data available, try filtering by pathogenicity score
+                        pathogenicity_query = """
+                            SELECT am_pathogenicity, am_class, uniprot_id, transcript_id, protein_variant, REF, ALT
+                            FROM alphamissense 
+                            WHERE transcript_id IN ({})
+                            AND protein_variant LIKE ?
+                            AND am_pathogenicity > 0.8
+                            ORDER BY am_pathogenicity DESC
+                            LIMIT 10
+                        """.format(','.join(['?' for _ in vep_transcript_ids]))
+                        pathogenicity_params = vep_transcript_ids + [position_pattern]
+                        cursor.execute(pathogenicity_query, pathogenicity_params)
+                        pathogenicity_matches = cursor.fetchall()
+                        if pathogenicity_matches:
+                            matches = pathogenicity_matches
+                            result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
+                        else:
+                            result.warnings.append(f"Strict filtering by protein_variant and pathogenicity gave no results; using broader position-based matches.")
             
             if matches:
                 # Extract pathogenicity scores and classes
