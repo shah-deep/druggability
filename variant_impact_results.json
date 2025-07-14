@@ -266,7 +266,8 @@
     "transcript_resolution_rate": 1.0
   },
   "variant_impact_analysis": {
-    "analysis_timestamp": "2025-07-14T11:39:40.976493",
-    "total_variants": 4
+    "analysis_timestamp": "2025-07-14T13:06:42.646730",
+    "total_variants": 4,
+    "parallel_workers": 8
   }
 }

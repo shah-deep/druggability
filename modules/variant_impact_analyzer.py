@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Variant Impact Analyzer
+Variant Impact Analyzer - Parallel Version
 
 A module for analyzing variant impact using AlphaMissense and ClinVar databases.
-Performs parallel processing of variants and their annotations.
+Performs parallel processing of variants using separate processes,
+with asynchronous I/O within each process.
 
 Example usage:
     analyzer = VariantImpactAnalyzer()
@@ -15,6 +16,10 @@ import json
 import sqlite3
 import logging
 import re
+import asyncio
+import multiprocessing as mp
+import tempfile
+import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
@@ -22,6 +27,8 @@ from datetime import datetime
 import statistics
 from collections import Counter
 import argparse
+import pickle
+import time
 
 # Import the ClinVar annotator
 try:
@@ -59,68 +66,198 @@ class VariantImpactResult:
 
 
 class VariantImpactAnalyzer:
-    """Analyzer for variant impact using AlphaMissense and ClinVar"""
+    """Parallel analyzer for variant impact using AlphaMissense and ClinVar"""
     
-    def __init__(self, alphamissense_db_path: str = "cache/alphamissense/alphamissense_hg38.db"):
+    def __init__(self, alphamissense_db_path: str = "cache/alphamissense/alphamissense_hg38.db", 
+                 max_workers: Optional[int] = None):
         """
         Initialize the variant impact analyzer
+        
+        Args:
+            alphamissense_db_path: Path to AlphaMissense database
+            max_workers: Maximum number of parallel processes (default: CPU count)
+        """
+        self.alphamissense_db_path = Path(alphamissense_db_path)
+        self.max_workers = max_workers or mp.cpu_count()
+        
+        # Validate database exists
+        if not self.alphamissense_db_path.exists():
+            raise FileNotFoundError(f"AlphaMissense database not found: {self.alphamissense_db_path}")
+        
+        logger.info(f"Variant Impact Analyzer initialized with {self.max_workers} workers")
+    def analyze_variants(self, input_file: str) -> Dict[str, Any]:
+        """
+        Analyze all variants in the processed input file using parallel processing
+
+        Args:
+            input_file: Path to processed_input.json file
+
+        Returns:
+            Dictionary containing analysis results and original data
+        """
+        # Load input data
+        with open(input_file, 'r') as f:
+            raw_data = json.load(f)
+
+        # Handle both list format and dictionary format
+        if isinstance(raw_data, list):
+            variants = raw_data
+            input_data = {'missense_variants': variants}
+        else:
+            variants = raw_data.get('missense_variants', [])
+            input_data = raw_data if isinstance(raw_data, dict) else {'missense_variants': variants}
+
+        logger.info(f"Analyzing {len(variants)} variants using {self.max_workers} parallel processes")
+
+        # Create temporary directory for inter-process communication
+        temp_dir = Path(tempfile.mkdtemp(prefix="variant_analysis_"))
+        logger.info(f"Using temporary directory: {temp_dir}")
+
+        try:
+            # Process variants in parallel
+            results = self._process_variants_parallel(variants, temp_dir)
+
+            # Update variants with results
+            for variant in variants:
+                variant_id = variant['id']
+                if variant_id in results:
+                    result = results[variant_id]
+
+                    # Add AlphaMissense results to variant
+                    variant['pathogenicity_score'] = result.alphamissense.average_pathogenicity_score
+                    variant['alphamissense_annotation'] = result.alphamissense.max_occurring_class.title() if result.alphamissense.max_occurring_class else None
+
+                    # Add ClinVar results to variant
+                    variant['clinvar_variation_id'] = result.clinvar.variation_id
+                    variant['clinvar_annotation'] = result.clinvar.clinical_significance.title() if result.clinvar.clinical_significance else None
+
+            # Add analysis metadata
+            input_data['variant_impact_analysis'] = {  # type: ignore
+                'analysis_timestamp': datetime.now().isoformat(),
+                'total_variants': len(variants),
+                'parallel_workers': self.max_workers
+            }
+
+            return input_data
+
+        finally:
+            # Clean up temporary directory
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            logger.info(f"Cleaned up temporary directory: {temp_dir}")
+    
+    def _process_variants_parallel(self, variants: List[Dict], temp_dir: Path) -> Dict[str, VariantImpactResult]:
+        """
+        Process variants in parallel using multiprocessing
+        
+        Args:
+            variants: List of variant dictionaries
+            temp_dir: Temporary directory for inter-process communication
+            
+        Returns:
+            Dictionary mapping variant_id to VariantImpactResult
+        """
+        # Prepare arguments for each process
+        process_args = []
+        for i, variant in enumerate(variants):
+            # Create unique temp file for this variant
+            temp_file = temp_dir / f"variant_{i}_{variant['id']}.pkl"
+            process_args.append((variant, str(self.alphamissense_db_path), str(temp_file)))
+        
+        # Process variants in parallel
+        with mp.Pool(processes=self.max_workers) as pool:
+            pool.map(self._process_single_variant_worker, process_args)
+        
+        # Collect results from temp files
+        results = {}
+        for i, variant in enumerate(variants):
+            temp_file = temp_dir / f"variant_{i}_{variant['id']}.pkl"
+            if temp_file.exists():
+                try:
+                    with open(temp_file, 'rb') as f:
+                        result = pickle.load(f)
+                    results[variant['id']] = result
+                except Exception as e:
+                    logger.error(f"Error loading result for {variant['id']}: {e}")
+        
+        return results
+    
+    def save_results(self, results: Dict[str, Any], output_file: str):
+        """
+        Save analysis results to file
+        
+        Args:
+            results: Analysis results dictionary
+            output_file: Output file path
+        """
+        with open(output_file, 'w') as f:
+            json.dump(results, f, indent=2, default=str)
+        
+        logger.info(f"Results saved to: {output_file}")
+    
+    @staticmethod
+    def _process_single_variant_worker(args: Tuple[Dict, str, str]) -> None:
+        """
+        Worker function to process a single variant in a separate process
+        
+        Args:
+            args: Tuple of (variant, alphamissense_db_path, temp_file_path)
+        """
+        variant, alphamissense_db_path, temp_file_path = args
+        variant_id = variant['id']
+        
+        try:
+            # Create analyzer instance for this process
+            analyzer = SingleVariantAnalyzer(alphamissense_db_path)
+            
+            # Process variant asynchronously
+            result = asyncio.run(analyzer.analyze_variant_async(variant))
+            
+            # Save result to temp file
+            with open(temp_file_path, 'wb') as f:
+                pickle.dump(result, f)
+                
+            logger.info(f"Processed variant {variant_id}")
+            
+        except Exception as e:
+            logger.error(f"Error processing variant {variant_id}: {e}")
+            # Create error result
+            error_result = VariantImpactResult(
+                variant_id=variant_id,
+                gene=variant.get('gene', ''),
+                protein_change=variant.get('protein_change', ''),
+                alphamissense=AlphaMissenseResult(
+                    variant_id=variant_id,
+                    gene=variant.get('gene', ''),
+                    protein_change=variant.get('protein_change', ''),
+                    warnings=[f"Processing error: {str(e)}"]
+                ),
+                clinvar=ClinVarAnnotation(
+                    variant_id=variant_id,
+                    gene=variant.get('gene', ''),
+                    protein_change=variant.get('protein_change', ''),
+                    warnings=[f"Processing error: {str(e)}"]
+                )
+            )
+            with open(temp_file_path, 'wb') as f:
+                pickle.dump(error_result, f)
+
+
+class SingleVariantAnalyzer:
+    """Analyzer for a single variant with async I/O"""
+    
+    def __init__(self, alphamissense_db_path: str):
+        """
+        Initialize single variant analyzer
         
         Args:
             alphamissense_db_path: Path to AlphaMissense database
         """
         self.alphamissense_db_path = Path(alphamissense_db_path)
         self.clinvar_annotator = ClinVarAnnotator()
-        
-        # Validate database exists
-        if not self.alphamissense_db_path.exists():
-            raise FileNotFoundError(f"AlphaMissense database not found: {self.alphamissense_db_path}")
-        
-        logger.info("Variant Impact Analyzer initialized")
     
-    def analyze_variants(self, input_file: str) -> Dict[str, Any]:
+    async def analyze_variant_async(self, variant: Dict) -> VariantImpactResult:
         """
-        Analyze all variants in the processed input file
-        
-        Args:
-            input_file: Path to processed_input.json file
-            
-        Returns:
-            Dictionary containing analysis results and original data
-        """
-        # Load input data
-        with open(input_file, 'r') as f:
-            input_data = json.load(f)
-        
-        variants = input_data.get('missense_variants', [])
-        logger.info(f"Analyzing {len(variants)} variants")
-        
-        # Process each variant and add results directly to the variant
-        for variant in variants:
-            variant_id = variant['id']
-            logger.info(f"Processing variant: {variant_id}")
-            
-            # Analyze variant
-            result = self._analyze_single_variant(variant)
-            
-            # Add AlphaMissense results to variant
-            variant['pathogenicity_score'] = result.alphamissense.average_pathogenicity_score
-            variant['alphamissense_annotation'] = result.alphamissense.max_occurring_class.title() if result.alphamissense.max_occurring_class else None
-            
-            # Add ClinVar results to variant
-            variant['clinvar_variation_id'] = result.clinvar.variation_id
-            variant['clinvar_annotation'] = result.clinvar.clinical_significance.title() if result.clinvar.clinical_significance else None
-        
-        # Add analysis metadata
-        input_data['variant_impact_analysis'] = {
-            'analysis_timestamp': datetime.now().isoformat(),
-            'total_variants': len(variants)
-        }
-        
-        return input_data
-    
-    def _analyze_single_variant(self, variant: Dict) -> VariantImpactResult:
-        """
-        Analyze a single variant using AlphaMissense and ClinVar
+        Analyze a single variant using async I/O for AlphaMissense and ClinVar
         
         Args:
             variant: Variant dictionary from input
@@ -133,13 +270,41 @@ class VariantImpactAnalyzer:
         protein_change = variant['protein_change']
         vep_transcript_ids = variant.get('vep_transcript_ids', [])
         
-        # Task 1: AlphaMissense analysis
-        alphamissense_result = self._analyze_alphamissense(
-            variant_id, gene, protein_change, vep_transcript_ids
+        # Run AlphaMissense and ClinVar analysis concurrently
+        alphamissense_task = asyncio.create_task(
+            self._analyze_alphamissense_async(variant_id, gene, protein_change, vep_transcript_ids)
+        )
+        clinvar_task = asyncio.create_task(
+            self._analyze_clinvar_async(variant)
         )
         
-        # Task 2: ClinVar analysis
-        clinvar_result = self.clinvar_annotator.annotate_variant(variant)
+        # Wait for both tasks to complete
+        results = await asyncio.gather(
+            alphamissense_task, clinvar_task, return_exceptions=True
+        )
+        
+        # Handle exceptions
+        alphamissense_result, clinvar_result = results
+        
+        if isinstance(alphamissense_result, Exception):
+            alphamissense_result = AlphaMissenseResult(
+                variant_id=variant_id,
+                gene=gene,
+                protein_change=protein_change,
+                warnings=[f"AlphaMissense error: {str(alphamissense_result)}"]
+            )
+        
+        if isinstance(clinvar_result, Exception):
+            clinvar_result = ClinVarAnnotation(
+                variant_id=variant_id,
+                gene=gene,
+                protein_change=protein_change,
+                warnings=[f"ClinVar error: {str(clinvar_result)}"]
+            )
+        
+        # Ensure we have proper types
+        assert isinstance(alphamissense_result, AlphaMissenseResult)
+        assert isinstance(clinvar_result, ClinVarAnnotation)
         
         return VariantImpactResult(
             variant_id=variant_id,
@@ -149,10 +314,31 @@ class VariantImpactAnalyzer:
             clinvar=clinvar_result
         )
     
-    def _analyze_alphamissense(self, variant_id: str, gene: str, 
-                              protein_change: str, vep_transcript_ids: List[str]) -> AlphaMissenseResult:
+    async def _analyze_alphamissense_async(self, variant_id: str, gene: str, 
+                                          protein_change: str, vep_transcript_ids: List[str]) -> AlphaMissenseResult:
         """
-        Analyze variant using AlphaMissense database
+        Analyze variant using AlphaMissense database asynchronously
+        
+        Args:
+            variant_id: Variant identifier
+            gene: Gene name
+            protein_change: Protein change (e.g., "p.Arg175His")
+            vep_transcript_ids: List of transcript IDs to search
+            
+        Returns:
+            AlphaMissenseResult with analysis results
+        """
+        # Run database query in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, self._analyze_alphamissense_sync, variant_id, gene, protein_change, vep_transcript_ids
+        )
+        return result
+    
+    def _analyze_alphamissense_sync(self, variant_id: str, gene: str, 
+                                   protein_change: str, vep_transcript_ids: List[str]) -> AlphaMissenseResult:
+        """
+        Synchronous AlphaMissense analysis (runs in thread pool)
         
         Args:
             variant_id: Variant identifier
@@ -226,7 +412,6 @@ class VariantImpactAnalyzer:
                         LIMIT 10
                     """.format(','.join(['?' for _ in vep_transcript_ids]))
                     pathogenicity_params = vep_transcript_ids + [position_pattern]
-                    # print(pathogenicity_query, pathogenicity_params)
                     cursor.execute(pathogenicity_query, pathogenicity_params)
                     pathogenicity_matches = cursor.fetchall()
                     if pathogenicity_matches:
@@ -266,44 +451,55 @@ class VariantImpactAnalyzer:
         
         return result
     
-    def save_results(self, results: Dict[str, Any], output_file: str):
+    async def _analyze_clinvar_async(self, variant: Dict) -> ClinVarAnnotation:
         """
-        Save analysis results to file
+        Analyze variant using ClinVar asynchronously
         
         Args:
-            results: Analysis results dictionary
-            output_file: Output file path
+            variant: Variant dictionary from input
+            
+        Returns:
+            ClinVarAnnotation with analysis results
         """
-        with open(output_file, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
-        
-        logger.info(f"Results saved to: {output_file}")
+        # Run ClinVar analysis in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, self.clinvar_annotator.annotate_variant, variant
+        )
+        return result
 
 
 def main():
     """Main function for testing"""
     
-    parser = argparse.ArgumentParser(description='Variant Impact Analyzer')
+    parser = argparse.ArgumentParser(description='Parallel Variant Impact Analyzer')
     parser.add_argument('--input', '-i', default="processed_input.json", 
                        help='Input file path (default: processed_input.json)')
     parser.add_argument('--output', '-o', default="variant_impact_results.json", 
                        help='Output file path (default: variant_impact_results.json)')
     parser.add_argument('--db-path', default="cache/alphamissense/alphamissense_hg38.db",
                        help='AlphaMissense database path (default: cache/alphamissense/alphamissense_hg38.db)')
+    parser.add_argument('--workers', '-w', type=int, default=None,
+                       help='Number of parallel workers (default: CPU count)')
     
     args = parser.parse_args()
     
-    analyzer = VariantImpactAnalyzer(alphamissense_db_path=args.db_path)
+    analyzer = VariantImpactAnalyzer(
+        alphamissense_db_path=args.db_path,
+        max_workers=args.workers
+    )
     
     # Analyze variants
     print(f"Analyzing variants from: {args.input}")
+    start_time = time.time()
     results = analyzer.analyze_variants(args.input)
+    end_time = time.time()
     
     # Save results
     analyzer.save_results(results, args.output)
     
     # Print summary
-    print(f"Analysis complete. Results saved to: {args.output}")
+    print(f"Analysis complete in {end_time - start_time:.2f} seconds. Results saved to: {args.output}")
     
     # Print summary statistics
     variants = results.get('missense_variants', [])
