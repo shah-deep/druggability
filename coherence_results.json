@@ -1,105 +1,48 @@
 {
-  "cross_scale_consistency": 0.6740449088483739,
+  "cross_scale_consistency": 0.611855,
   "tissue_specificity_scores": {
-    "BRCA1": {},
-    "CFTR": {
-      "Breast_Mammary_Tissue": 0.009535,
-      "Whole_Blood": 0.0,
-      "Liver": 0.05618000000000001,
-      "Lung": 0.23570000000000002
-    },
     "TP53": {
-      "Breast_Mammary_Tissue": 1.0,
-      "Whole_Blood": 0.7698,
-      "Liver": 0.68685,
-      "Lung": 1.0
+      "Breast_Mammary_Tissue": 1.0
+    },
+    "CFTR": {
+      "Breast_Mammary_Tissue": 0.009535
+    },
+    "BRCA1": {
+      "Breast_Mammary_Tissue": 0.1316
     }
   },
   "evidence_weights": {
-    "variant_consistency": 0.25,
-    "pathway_consistency": 0.25,
-    "structural_consistency": 0.25,
-    "tissue_specificity": 0.25
+    "variant_consistency": 0.4,
+    "tissue_specificity": 0.6
   },
   "gtex_validation_results": {
-    "BRCA1": {},
-    "CFTR": {
-      "Whole_Blood": {
-        "median_tpm": 0.0,
-        "samples": 755,
-        "tissue_found": true,
-        "tissue_name": "Whole_Blood",
-        "gencode_id_used": "ENSG00000001626.14"
-      },
-      "Breast_Mammary_Tissue": {
-        "median_tpm": 0.09535,
-        "samples": 459,
-        "tissue_found": true,
-        "tissue_name": "Breast_Mammary_Tissue",
-        "gencode_id_used": "ENSG00000001626.14"
-      },
-      "Liver": {
-        "median_tpm": 0.5618000000000001,
-        "samples": 226,
-        "tissue_found": true,
-        "tissue_name": "Liver",
-        "gencode_id_used": "ENSG00000001626.14"
-      },
-      "Lung": {
-        "median_tpm": 2.357,
-        "samples": 578,
-        "tissue_found": true,
-        "tissue_name": "Lung",
-        "gencode_id_used": "ENSG00000001626.14"
-      }
-    },
     "TP53": {
-      "Whole_Blood": {
-        "median_tpm": 7.698,
-        "samples": 755,
-        "tissue_found": true,
-        "tissue_name": "Whole_Blood",
-        "gencode_id_used": "ENSG00000141510.16"
-      },
       "Breast_Mammary_Tissue": {
         "median_tpm": 24.56,
         "samples": 459,
         "tissue_found": true,
         "tissue_name": "Breast_Mammary_Tissue",
         "gencode_id_used": "ENSG00000141510.16"
-      },
-      "Liver": {
-        "median_tpm": 6.8685,
-        "samples": 226,
+      }
+    },
+    "CFTR": {
+      "Breast_Mammary_Tissue": {
+        "median_tpm": 0.09535,
+        "samples": 459,
         "tissue_found": true,
-        "tissue_name": "Liver",
-        "gencode_id_used": "ENSG00000141510.16"
-      },
-      "Lung": {
-        "median_tpm": 16.92,
-        "samples": 578,
+        "tissue_name": "Breast_Mammary_Tissue",
+        "gencode_id_used": "ENSG00000001626.14"
+      }
+    },
+    "BRCA1": {
+      "Breast_Mammary_Tissue": {
+        "median_tpm": 1.316,
+        "samples": 459,
         "tissue_found": true,
-        "tissue_name": "Lung",
-        "gencode_id_used": "ENSG00000141510.16"
+        "tissue_name": "Breast_Mammary_Tissue",
+        "gencode_id_used": "ENSG00000012048.20"
       }
     }
   },
-  "warnings": [],
-  "processing_timestamp": "2025-07-14T22:27:36.872252",
-  "config": {
-    "evidence_weights": {
-      "variant_consistency": 0.25,
-      "pathway_consistency": 0.25,
-      "structural_consistency": 0.25,
-      "tissue_specificity": 0.25
-    },
-    "gtex_cache_ttl": 604800,
-    "gtex_timeout": 30,
-    "gtex_max_retries": 1,
-    "ensembl_timeout": 30,
-    "ensembl_max_retries": 1,
-    "expression_threshold": 1.0,
-    "tissue_specificity_threshold": 0.5,
-    "consistency_threshold": 0.6
-  }
+  "processing_timestamp": "2025-07-14T23:12:46.567474"
 }

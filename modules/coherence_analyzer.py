@@ -29,7 +29,7 @@ import numpy as np
 
 # Async HTTP client
 try:
-    import aiohttp
+    import aiohttp # type: ignore
     AIOHTTP_AVAILABLE = True
 except ImportError:
     print("Warning: aiohttp not available. Install with: pip install aiohttp")
@@ -47,7 +47,7 @@ class CoherenceResult:
     tissue_specificity_scores: Dict[str, float] = field(default_factory=dict)
     evidence_weights: Dict[str, float] = field(default_factory=dict)
     gtex_validation_results: Dict[str, Any] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
+    # warnings: List[str] = field(default_factory=list)
     processing_timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -66,7 +66,11 @@ class CoherenceAnalyzer:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp is required for GTEx API calls")
         
-        self.config = config or self._get_default_config()
+        if config is None:
+            logger.warning("No configuration provided, using default configuration")
+            config = self._get_default_config()
+        
+        self.config = config
         self.cache_dir = Path("cache/gtex")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
@@ -94,6 +98,7 @@ class CoherenceAnalyzer:
     
     def _get_default_config(self) -> Dict:
         """Get default configuration"""
+        logger.warning("Using default configuration values")
         return {
             'evidence_weights': {
                 'variant_consistency': 0.4,
@@ -158,8 +163,8 @@ class CoherenceAnalyzer:
             )
             
             # Add warnings if consistency is low
-            if consistency_score < self.config['consistency_threshold']:
-                result.warnings.append(f"Low cross-scale consistency: {consistency_score:.3f}")
+            # if consistency_score < self.config['consistency_threshold']:
+            #     result.warnings.append(f"Low cross-scale consistency: {consistency_score:.3f}")
             
             logger.info(f"Coherence analysis complete. Consistency score: {consistency_score:.3f}")
         
@@ -210,7 +215,7 @@ class CoherenceAnalyzer:
         logger.info(f"Extracted GENCODE IDs for {len(gene_to_gencode)} genes: {gene_to_gencode}")
         return gene_to_gencode
 
-    def _generate_version_variants(self, gencode_id: str, max_attempts: int = 5) -> List[str]:
+    def _generate_version_variants(self, gencode_id: str, max_attempts: int = 10) -> List[str]:
         """
         Generate version variants of a GENCODE ID by reducing version number.
         
@@ -249,6 +254,9 @@ class CoherenceAnalyzer:
         # Map diagnosis to GTEx v2 tissues
         tissues = self.disease_tissue_mapping.get(diagnosis, [])
         
+        if not tissues:
+            logger.warning(f"No tissue mapping found for diagnosis: {diagnosis}")
+        
         logger.info(f"Target tissues for {diagnosis}: {tissues}")
         return tissues
 
@@ -268,7 +276,7 @@ class CoherenceAnalyzer:
             logger.info(f"Querying GTEx for gene {gene} with GENCODE ID {original_gencode_id}")
             
             # Generate version variants
-            gencode_variants = self._generate_version_variants(original_gencode_id, max_attempts=5)
+            gencode_variants = self._generate_version_variants(original_gencode_id, max_attempts=10)
             
             # Try each tissue for this gene
             for tissue in tissues:
@@ -300,7 +308,7 @@ class CoherenceAnalyzer:
                                     'gencode_id_used': variant_gencode_id
                                 }
                         else:
-                            logger.debug(f"Unexpected data structure for {gene} in {tissue}")
+                            logger.debug(f"Unexpected data structure for {gene} in {tissue}: {expression_data}")
                         
                         # Found data for this tissue, no need to try other variants
                         break
@@ -333,7 +341,7 @@ class CoherenceAnalyzer:
         
         for attempt in range(self.config['gtex_max_retries']):
             try:
-                async with self.session.get(url, params=params) as response:
+                async with self.session.get(url, params=params) as response: # type: ignore
                     if response.status == 200:
                         content_type = response.headers.get('content-type', '')
                         if 'application/json' in content_type:
@@ -395,10 +403,12 @@ class CoherenceAnalyzer:
     def _assess_variant_consistency(self, processed_input: Dict) -> float:
         """Assess consistency of variant-level evidence"""
         if 'missense_variants' not in processed_input:
+            logger.warning("No missense_variants found in processed input, using default score of 0.5")
             return 0.5
         
         variants = processed_input['missense_variants']
         if not variants:
+            logger.warning("Empty missense_variants list, using default score of 0.5")
             return 0.5
         
         pathogenic_scores = []
@@ -428,6 +438,8 @@ class CoherenceAnalyzer:
         if pathogenic_scores:
             avg_pathogenicity = statistics.mean(pathogenic_scores)
             score += 0.4 * avg_pathogenicity
+        else:
+            logger.warning("No pathogenicity scores found in variants")
         
         # ClinVar consistency
         if variants:
@@ -444,6 +456,7 @@ class CoherenceAnalyzer:
     def _assess_tissue_specificity(self, clinical_data: Dict, gtex_data: Dict) -> float:
         """Assess tissue-specific biomarker relevance using GTEx data"""
         if not gtex_data:
+            logger.warning("No GTEx data available, using default tissue specificity score of 0.5")
             return 0.5
         
         diagnosis = clinical_data.get('diagnosis', '').lower()
@@ -452,6 +465,7 @@ class CoherenceAnalyzer:
         # Get relevant tissues
         target_tissues = self.disease_tissue_mapping.get(diagnosis, [])
         if not target_tissues:
+            logger.warning(f"No tissue mapping found for diagnosis '{diagnosis}', using default score of 0.5")
             return 0.5
         
         tissue_scores = []
@@ -485,7 +499,11 @@ class CoherenceAnalyzer:
                 # Boost score for positive biomarkers
                 tissue_scores = [min(1.0, score * 1.2) for score in tissue_scores]
         
-        return statistics.mean(tissue_scores) if tissue_scores else 0.5
+        if not tissue_scores:
+            logger.warning("No tissue scores calculated, using default score of 0.5")
+            return 0.5
+            
+        return statistics.mean(tissue_scores)
     
     def _calculate_tissue_specificity_scores(self, clinical_data: Dict, gtex_data: Dict) -> Dict[str, float]:
         """Calculate detailed tissue specificity scores"""
@@ -518,15 +536,17 @@ class CoherenceAnalyzer:
             'tissue_specificity_scores': result.tissue_specificity_scores,
             'evidence_weights': result.evidence_weights,
             'gtex_validation_results': result.gtex_validation_results,
-            'warnings': result.warnings,
-            'processing_timestamp': result.processing_timestamp,
-            'config': self.config
+            'processing_timestamp': result.processing_timestamp
         }
         
-        with open(output_file, 'w') as f:
-            json.dump(output_data, f, indent=2)
-        
-        logger.info(f"Coherence results exported to: {output_file}")
+        try:
+            with open(output_file, 'w') as f:
+                json.dump(output_data, f, indent=2)
+            logger.info(f"Coherence results exported to: {output_file}")
+        except Exception as e:
+            logger.error(f"Failed to export results to {output_file}: {e}")
+            raise
+
 
 
 async def main():
@@ -534,10 +554,10 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Coherence Analyzer")
-    parser.add_argument("--processed-input", default="processed_input.json",
-                       help="Processed input file")
-    parser.add_argument("--clinical-data", default="examples/ex_clinical_data.json",
-                       help="Clinical data file")
+    parser.add_argument("--processed-input", required=True,
+                       help="Processed input file (required)")
+    parser.add_argument("--clinical-data", required=True,
+                       help="Clinical data file (required)")
     parser.add_argument("-o", "--output", default="coherence_results.json",
                        help="Output file (default: coherence_results.json)")
     parser.add_argument("--simple", action="store_true",
@@ -550,14 +570,15 @@ async def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
     
+    # Warn about default output file
+    if args.output == "coherence_results.json":
+        logger.warning("Using default output file: coherence_results.json")
+    
     # Initialize analyzer
     analyzer = CoherenceAnalyzer()
     
-    # Run analysis
-    result = await analyzer.analyze_coherence(
-        args.processed_input,
-        args.clinical_data
-    )
+    # Run analysis with provided files
+    result = await analyzer.analyze_coherence(args.processed_input, args.clinical_data)
     
     if args.simple:
         # Simple output format as requested
@@ -566,8 +587,9 @@ async def main():
     else:
         # Full output
         analyzer.export_results(result, args.output)
-        print(f"Coherence analysis complete. Results saved to: {args.output}")
-        print(f"Cross-scale consistency: {result.cross_scale_consistency:.3f}")
+        print(f"✓ Coherence analysis complete")
+        print(f"✓ Results saved to: {args.output}")
+        print(f"✓ Cross-scale consistency: {result.cross_scale_consistency:.3f}")
 
 
 if __name__ == "__main__":
