@@ -1,7 +1,7 @@
 {
   "pdb_file": "examples/protein_42.pdb",
   "pocket_data": null,
-  "dna_sequence": "examples/long_dna_sequence.txt",
+  "dna_sequence": null,
   "rna_sequence": null,
   "protein_sequence": null,
   "missense_variants": [
@@ -14,7 +14,8 @@
       "protein_change": "p.Arg175His",
       "chromosome": "17",
       "transcript": "",
-      "transcript_id": "ENST00000269305",
+      "gencode_id": "ENSG00000141510.19",
+      "transcript_id": "ENST00000269305.9",
       "vep_transcript_ids": [
         "ENST00000413465",
         "ENST00000635293",
@@ -52,7 +53,7 @@
       ],
       "pathogenicity_score": 0.97995,
       "alphamissense_annotation": "Likely_Pathogenic",
-      "alphamissense_confidence": "high",
+      "alphamissense_confidence": "low",
       "clinvar_variation_id": "VCV000376649",
       "clinvar_annotation": "Pathogenic"
     },
@@ -65,7 +66,8 @@
       "protein_change": "p.Cys61Gly",
       "chromosome": "17",
       "transcript": "",
-      "transcript_id": "ENST00000357654",
+      "gencode_id": "ENSG00000012048.26",
+      "transcript_id": "ENST00000357654.9",
       "vep_transcript_ids": [
         "ENST00000497488",
         "ENST00000489037",
@@ -124,7 +126,8 @@
       "protein_change": "p.Phe508del",
       "chromosome": "7",
       "transcript": "",
-      "transcript_id": "ENST00000635602",
+      "gencode_id": "ENSG00000001626.18",
+      "transcript_id": "ENST00000003084.11",
       "vep_transcript_ids": [
         "ENST00000673785",
         "ENST00000436097",
@@ -167,20 +170,21 @@
       ],
       "pathogenicity_score": 0.916975,
       "alphamissense_annotation": "Likely_Pathogenic",
-      "alphamissense_confidence": "high",
+      "alphamissense_confidence": "low",
       "clinvar_variation_id": "VCV003894528",
       "clinvar_annotation": "Pathogenic"
     },
     {
       "id": "var_BRCA1_185delAG",
       "position": 43124,
-      "reference": "T",
-      "alternate": "C",
+      "reference": "AG",
+      "alternate": "-",
       "gene": "BRCA1",
       "protein_change": "p.Glu23fs",
       "chromosome": "17",
       "transcript": "",
-      "transcript_id": "ENST00000357654",
+      "gencode_id": "ENSG00000012048.26",
+      "transcript_id": "ENST00000357654.9",
       "vep_transcript_ids": [
         "ENST00000497488",
         "ENST00000489037",
@@ -224,53 +228,50 @@
         "ENST00000700185",
         "ENST00000700186"
       ],
-      "pathogenicity_score": 0.8786,
+      "pathogenicity_score": 0.93814,
       "alphamissense_annotation": "Likely_Pathogenic",
       "alphamissense_confidence": "low",
       "clinvar_variation_id": "VCV001755509",
       "clinvar_annotation": "Pathogenic"
     }
   ],
-  "clinical_data": {
-    "patient_id": "P001",
-    "age": 55,
-    "gender": "female",
-    "diagnosis": "breast_cancer",
-    "stage": "II",
-    "biomarkers": {
-      "HER2": "positive",
-      "ER": "positive",
-      "PR": "negative"
-    },
-    "prior_treatments": [
-      "chemotherapy",
-      "radiation"
-    ]
-  },
+  "clinical_data": null,
   "structural_constraints": null,
   "single_cell_data": null,
   "metabolic_data": null,
-  "input_hash": "82d295991364d80d219155f22e83ba8a",
-  "processing_timestamp": "2025-07-14T02:04:20.854594",
+  "input_hash": "d23ea44d82e83549c3a72a68b7c571b7",
+  "processing_timestamp": "2025-07-14T22:17:47.791164",
   "validation_result": {
     "is_valid": true,
     "errors": [],
     "warnings": [
+      "Model 'enformer' (genotype_models) cannot run: missing dna_sequence",
       "Model 'bigrna' (genotype_models) cannot run: missing rna_sequence",
+      "Model 'genegenie' (genotype_models) cannot run: missing dna_sequence",
       "Model 'scgpt' (simulation_models) cannot run: missing single_cell_data",
       "Model 'scfoundation' (simulation_models) cannot run: missing single_cell_data",
+      "Model 'octo' (simulation_models) cannot run: missing clinical_data",
       "Model 'proteinmpnn' (structure_models) cannot run: missing protein_sequence",
       "Model 'esm3' (structure_models) cannot run: missing protein_sequence",
-      "Model 'atom1' (structure_models) cannot run: missing rna_sequence"
+      "Model 'atom1' (structure_models) cannot run: missing rna_sequence",
+      "Model 'arteraai' (biomarker_models) cannot run: missing clinical_data",
+      "Model 'cobrapy' (metabolic_models) cannot run: missing dna_sequence"
     ]
+  },
+  "parallel_processing": {
+    "workers_used": 8,
+    "processing_method": "parallel"
   },
   "transcript_resolution_summary": {
     "total_variants": 4,
     "variants_with_transcript_ids": 4,
-    "transcript_resolution_rate": 1.0
+    "transcript_resolution_rate": 1.0,
+    "variants_with_gencode_ids": 4,
+    "gencode_id_resolution_rate": 1.0,
+    "processing_method": "parallel"
   },
   "variant_impact_analysis": {
-    "analysis_timestamp": "2025-07-14T13:57:49.009003",
+    "analysis_timestamp": "2025-07-14T22:19:38.089532",
     "total_variants": 4,
     "parallel_workers": 8
   }

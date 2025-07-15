@@ -176,12 +176,31 @@ class TranscriptResolver:
         
         if transcript_id:
             self.cache[cache_key] = transcript_id
-            self._save_cache()
+            # self._save_cache()
             logger.info(f"Resolved transcript ID for {gene} {protein_change}: {transcript_id}")
         else:
             logger.warning(f"Could not resolve transcript ID for {gene} {protein_change}")
         
         return transcript_id
+
+    def get_gencode_id(self, gene: str) -> Optional[str]:
+        """Get the gencode_id for a gene by constructing id.version from transcript data"""
+        try:
+            url = f"{self.ensembl_api_base}/lookup/symbol/homo_sapiens/{quote(gene)}?expand=1"
+            data = self._make_api_request(url)
+            
+            if not data or 'id' not in data:
+                return None
+            
+            id = data['id']
+            version = data['version']
+            gencode_id = f"{id}.{version}"
+            logger.info(f"Found gencode_id for {gene}: {gencode_id}")
+            return gencode_id
+            
+        except Exception as e:
+            logger.warning(f"Error getting gencode_id for {gene}: {e}")
+            return None
     
     def _resolve_with_vep_strategies(self, variant: Dict) -> Optional[str]:
         """Try multiple VEP strategies to resolve transcript ID"""
@@ -189,9 +208,9 @@ class TranscriptResolver:
         gene = variant['gene']
         
         # Strategy 1: VEP with genomic coordinates (most reliable)
-        transcript_id = self._query_vep_for_variant(variant)
-        if transcript_id:
-            return transcript_id
+        # transcript_id = self._query_vep_for_variant(variant)
+        # if transcript_id:
+        #     return transcript_id
         
         # Strategy 2: Gene lookup for canonical transcript (fallback)
         logger.info(f"Falling back to canonical transcript for {gene}")
@@ -336,21 +355,42 @@ class TranscriptResolver:
             url = f"{self.ensembl_api_base}/lookup/symbol/homo_sapiens/{quote(gene)}?expand=1"
             data = self._make_api_request(url)
             
-            if not data or 'Transcript' not in data:
+            if not data:
                 return None
             
-            # Look for canonical transcript
-            for transcript in data['Transcript']:
-                if transcript.get('is_canonical', 0) == 1:
-                    transcript_id = transcript.get('id')
-                    logger.info(f"Found canonical transcript for {gene}: {transcript_id}")
-                    return transcript_id
+            # First, try to get the canonical transcript from the gene-level canonical_transcript field
+            canonical_transcript = data.get('canonical_transcript')
+            if canonical_transcript:
+                logger.info(f"Found canonical transcript for {gene}: {canonical_transcript}")
+                return canonical_transcript
             
-            # If no canonical, return first transcript
-            if data['Transcript']:
-                transcript_id = data['Transcript'][0].get('id')
-                logger.info(f"Found first transcript for {gene}: {transcript_id}")
-                return transcript_id
+            # Fallback: Look through transcripts for canonical
+            if 'Transcript' in data:
+                for transcript in data['Transcript']:
+                    if transcript.get('is_canonical', 0) == 1:
+                        transcript_id = transcript.get('id')
+                        version = transcript.get('version')
+                        # Return stable ID with decimal format if version is available
+                        if version is not None:
+                            stable_id_with_version = f"{transcript_id}.{version}"
+                            logger.info(f"Found canonical transcript for {gene}: {stable_id_with_version}")
+                            return stable_id_with_version
+                        else:
+                            logger.info(f"Found canonical transcript for {gene}: {transcript_id}")
+                            return transcript_id
+                
+                # If no canonical, return first transcript
+                if data['Transcript']:
+                    transcript_id = data['Transcript'][0].get('id')
+                    version = data['Transcript'][0].get('version')
+                    # Return stable ID with decimal format if version is available
+                    if version is not None:
+                        stable_id_with_version = f"{transcript_id}.{version}"
+                        logger.info(f"Found first transcript for {gene}: {stable_id_with_version}")
+                        return stable_id_with_version
+                    else:
+                        logger.info(f"Found first transcript for {gene}: {transcript_id}")
+                        return transcript_id
             
             return None
             

@@ -477,7 +477,8 @@ class EnhancedInputProcessor:
                 'gene': str(variant.get('gene', '')),
                 'protein_change': str(variant.get('protein_change', '')),
                 'chromosome': str(variant.get('chromosome', '')),
-                'transcript': str(variant.get('transcript', ''))
+                'transcript': str(variant.get('transcript', '')),
+                'gencode_id': str(variant.get('gencode_id', ''))
             }
             
             normalized.append(normalized_variant)
@@ -576,14 +577,27 @@ class EnhancedInputProcessor:
             variant: Variant dictionary
             
         Returns:
-            Variant dictionary with resolved transcript ID
+            Variant dictionary with resolved transcript ID and gencode_id
         """
         # Use the resolve_variants method which handles everything internally
         resolved_variants = resolver.resolve_variants([variant])
         
-        # Return the first (and only) resolved variant
+        # Get the first (and only) resolved variant
         if resolved_variants:
-            return resolved_variants[0]
+            resolved_variant = resolved_variants[0]
+            
+            # Add gencode_id if gene is available
+            gene = resolved_variant.get('gene')
+            if gene and not resolved_variant.get('gencode_id'):
+                try:
+                    gencode_id = resolver.get_gencode_id(gene)
+                    if gencode_id:
+                        resolved_variant['gencode_id'] = gencode_id
+                        logger.info(f"Added gencode_id for {gene}: {gencode_id}")
+                except Exception as e:
+                    logger.warning(f"Could not fetch gencode_id for {gene}: {e}")
+            
+            return resolved_variant
         else:
             return variant
     
@@ -622,6 +636,11 @@ class EnhancedInputProcessor:
             variants_with_transcripts = sum(1 for v in processed_input.missense_variants if v.get('transcript_id'))
             summary['variants_with_transcript_ids'] = variants_with_transcripts
             summary['transcript_resolution_rate'] = variants_with_transcripts / len(processed_input.missense_variants) if processed_input.missense_variants else 0.0
+            
+            # Add gencode_id resolution statistics
+            variants_with_gencode_ids = sum(1 for v in processed_input.missense_variants if v.get('gencode_id'))
+            summary['variants_with_gencode_ids'] = variants_with_gencode_ids
+            summary['gencode_id_resolution_rate'] = variants_with_gencode_ids / len(processed_input.missense_variants) if processed_input.missense_variants else 0.0
         
         if processed_input.dna_sequence:
             if os.path.exists(processed_input.dna_sequence):
@@ -673,10 +692,13 @@ class EnhancedInputProcessor:
         # Add transcript resolution summary
         if processed_input.missense_variants:
             variants_with_transcripts = sum(1 for v in processed_input.missense_variants if v.get('transcript_id'))
+            variants_with_gencode_ids = sum(1 for v in processed_input.missense_variants if v.get('gencode_id'))
             output_data['transcript_resolution_summary'] = {
                 'total_variants': len(processed_input.missense_variants),
                 'variants_with_transcript_ids': variants_with_transcripts,
                 'transcript_resolution_rate': variants_with_transcripts / len(processed_input.missense_variants),
+                'variants_with_gencode_ids': variants_with_gencode_ids,
+                'gencode_id_resolution_rate': variants_with_gencode_ids / len(processed_input.missense_variants),
                 'processing_method': 'parallel'
             }
         
