@@ -204,10 +204,10 @@ class EnhancedPipelineOrchestrator:
             with open(clinical_data_file, 'r') as f:
                 inputs['clinical_data'] = json.load(f)
         
-        # Load protein sequence
-        if os.path.exists(protein_sequence_file):
-            with open(protein_sequence_file, 'r') as f:
-                inputs['protein_sequence'] = f.read().strip()
+        # # Load protein sequence
+        # if os.path.exists(protein_sequence_file):
+        #     with open(protein_sequence_file, 'r') as f:
+        #         inputs['protein_sequence'] = f.read().strip()
         
         # Add PDB file path
         if os.path.exists(pdb_file):
