@@ -10,7 +10,7 @@ Example usage:
 
 To run the enhanced pipeline orchestrator, use the following command in WSL with your virtual environment activated:
 
-    wsl bash -c "source .venv/bin/activate && python3 -m modules.enhanced_pipeline_orchestrator \
+    wsl bash -c "source .venv/bin/activate && python3 -m orchestrator.enhanced_pipeline_orchestrator \
         --variants examples/ex_variants.json \
         --clinical examples/ex_clinical_data.json \
         --protein-seq examples/ex_protein_seq.txt \
@@ -32,6 +32,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import tempfile
 import shutil
+import concurrent.futures
+import asyncio
+import argparse
 from modules.enhanced_input_processor import EnhancedInputProcessor
 from modules.variant_impact_analyzer import VariantImpactAnalyzer
 from modules.structure_function_integrator import StructureFunctionIntegrator
@@ -44,6 +47,15 @@ from modules.intelligent_coherence_scorer import IntelligentCoherenceScorer
 from modules.logging_config import setup_logging, get_logger
 setup_logging()
 logger = get_logger(__name__)
+
+# Set multiprocessing start method to 'spawn' to avoid daemon process issues
+# Only set if not already set
+if not hasattr(mp, '_start_method'):
+    try:
+        mp.set_start_method('spawn', force=True)
+    except RuntimeError:
+        # If spawn is not available, use default
+        pass
 
 
 @dataclass
@@ -133,23 +145,26 @@ class EnhancedPipelineOrchestrator:
             # Step 1 & 2: Run initial analysis (input processing + variant impact) and structural analysis in parallel
             logger.info("Running initial analysis and structural analysis in parallel")
             
-            # Prepare arguments for parallel processing of initial steps
-            initial_parallel_args = [
-                (self._run_initial_analysis_parallel, variants_file, clinical_data_file, protein_sequence_file, pdb_file),
-                (self._run_structural_analysis, pdb_file)
-            ]
-            
-            # Run initial steps in parallel
-            with mp.Pool(processes=min(self.max_workers, len(initial_parallel_args))) as pool:
-                initial_results = pool.starmap(self._run_single_parallel_process, initial_parallel_args)
+            # Prepare tasks for parallel execution
+            with concurrent.futures.ProcessPoolExecutor(max_workers=min(self.max_workers, 2)) as executor:
+                # Submit both tasks
+                initial_future = executor.submit(self._run_initial_analysis_parallel, 
+                                              variants_file, clinical_data_file, protein_sequence_file, pdb_file)
+                structural_future = executor.submit(self._run_structural_analysis, pdb_file)
+                
+                # Wait for both to complete
+                initial_result = initial_future.result()
+                structural_result = structural_future.result()
             
             # Collect results from parallel initial steps
-            for result_item in initial_results:
-                if result_item['type'] == 'initial_analysis':
-                    result.processed_input_file = result_item['processed_input_file']
-                    result.variant_impact_file = result_item['variant_impact_file']
-                elif result_item['type'] == 'structural_analysis':
-                    result.structural_results_file = result_item['file']
+            if initial_result['type'] == 'initial_analysis':
+                result.processed_input_file = initial_result['processed_input_file']
+                result.variant_impact_file = initial_result['variant_impact_file']
+            elif initial_result['type'] == 'structural_analysis':
+                result.structural_results_file = initial_result['file']
+                
+            if structural_result['type'] == 'structural_analysis':
+                result.structural_results_file = structural_result['file']
             
             logger.info("Initial parallel steps complete. Starting secondary parallel processing...")
             
@@ -264,40 +279,32 @@ class EnhancedPipelineOrchestrator:
             Dictionary with output file paths
         """
         logger.info("Starting parallel processes")
-        
-        # Prepare arguments for parallel processing
-        parallel_args = [
-            (self._run_sequence_variant_analysis, processed_input_file, protein_sequence_file),
-            (self._run_coherence_analysis, variant_impact_file, clinical_data_file),
-            (self._run_pathway_dynamics_analysis, variant_impact_file)
-        ]
-        
-        # Run processes in parallel
-        with mp.Pool(processes=min(self.max_workers, len(parallel_args))) as pool:
-            results = pool.starmap(self._run_single_parallel_process, parallel_args)
+    
+        # Prepare tasks for parallel execution
+        with concurrent.futures.ProcessPoolExecutor(max_workers=min(self.max_workers, 3)) as executor:
+            # Submit all three tasks
+            sequence_future = executor.submit(self._run_sequence_variant_analysis, processed_input_file, protein_sequence_file)
+            coherence_future = executor.submit(self._run_coherence_analysis, variant_impact_file, clinical_data_file)
+            pathway_future = executor.submit(self._run_pathway_dynamics_analysis, variant_impact_file)
+            
+            # Wait for all to complete
+            sequence_result = sequence_future.result()
+            coherence_result = coherence_future.result()
+            pathway_result = pathway_future.result()
         
         # Collect results
         output_files = {}
-        for result in results:
-            if result['type'] == 'sequence_variant':
-                output_files['sequence_variant_file'] = result['file']
-            elif result['type'] == 'coherence':
-                output_files['coherence_results_file'] = result['file']
-            elif result['type'] == 'pathway_dynamics':
-                output_files['pathway_dynamics_file'] = result['file']
+        if sequence_result['type'] == 'sequence_variant':
+            output_files['sequence_variant_file'] = sequence_result['file']
+        if coherence_result['type'] == 'coherence':
+            output_files['coherence_results_file'] = coherence_result['file']
+        if pathway_result['type'] == 'pathway_dynamics':
+            output_files['pathway_dynamics_file'] = pathway_result['file']
         
         logger.info("Parallel processes completed")
         return output_files
     
-    def _run_single_parallel_process(self, 
-                                   func, 
-                                   *args) -> Dict[str, str]:
-        """Run a single parallel process"""
-        try:
-            return func(*args)
-        except Exception as e:
-            logger.error(f"Error in parallel process {func.__name__}: {e}")
-            return {'type': 'error', 'file': '', 'error': str(e)}
+
     
     def _run_initial_analysis_parallel(self, 
                                      variants_file: str,
@@ -362,8 +369,6 @@ class EnhancedPipelineOrchestrator:
         
         output_file = self.output_dir / f"coherence_results_{self.timestamp}.json"
         
-        # Run coherence analysis (async)
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
@@ -425,7 +430,6 @@ class EnhancedPipelineOrchestrator:
 
 def main():
     """Main function for command-line usage"""
-    import argparse
     
     parser = argparse.ArgumentParser(description="Enhanced Pipeline Orchestrator")
     parser.add_argument("--variants", required=True, help="Path to variants JSON file")

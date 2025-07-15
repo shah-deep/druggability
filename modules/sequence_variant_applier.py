@@ -140,27 +140,6 @@ class SequenceVariantApplier:
         # Initialize results
         results = SequenceVariantResults(input_file=input_file)
         
-        # Apply variants to DNA sequence
-        if dna_sequence:
-            logger.info("Applying variants to DNA sequence")
-            results.dna_sequences = self._apply_variants_to_sequence(
-                variants, dna_sequence, 'dna'
-            )
-        
-        # Apply variants to RNA sequence
-        if rna_sequence:
-            logger.info("Applying variants to RNA sequence")
-            results.rna_sequences = self._apply_variants_to_sequence(
-                variants, rna_sequence, 'rna'
-            )
-        
-        # Apply variants to protein sequence
-        if protein_sequence:
-            logger.info("Applying variants to protein sequence")
-            results.protein_sequences = self._apply_variants_to_sequence(
-                variants, protein_sequence, 'protein'
-            )
-        
         # Generate combined sequences (all variants applied)
         results.combined_sequences = self._generate_combined_sequences(
             variants, dna_sequence, rna_sequence, protein_sequence
@@ -515,30 +494,27 @@ class SequenceVariantApplier:
             Summary dictionary
         """
         total_variants = len(variants)
-        successful_applications = 0
-        failed_applications = 0
         variant_types = defaultdict(int)
         
-        # Count successful and failed applications
-        for sequence_dict in [results.dna_sequences, results.rna_sequences, results.protein_sequences]:
-            for variant_result in sequence_dict.values():
-                if variant_result.validation_status == 'valid':
-                    successful_applications += 1
-                    variant_types[variant_result.variant_type] += 1
-                else:
-                    failed_applications += 1
+        # Count variant types
+        for variant in variants:
+            reference_allele = variant.get('reference', '')
+            alternate_allele = variant.get('alternate', '')
+            variant_type = self._determine_variant_type(reference_allele, alternate_allele)
+            variant_types[variant_type] += 1
+        
+        # Count sequences processed
+        sequences_processed = {
+            'dna': 1 if 'dna' in results.combined_sequences else 0,
+            'rna': 1 if 'rna' in results.combined_sequences else 0,
+            'protein': 1 if 'protein' in results.combined_sequences else 0
+        }
         
         return {
             'total_variants': total_variants,
-            'successful_applications': successful_applications,
-            'failed_applications': failed_applications,
-            'success_rate': successful_applications / (successful_applications + failed_applications) if (successful_applications + failed_applications) > 0 else 0,
             'variant_type_distribution': dict(variant_types),
-            'sequences_processed': {
-                'dna': len(results.dna_sequences),
-                'rna': len(results.rna_sequences),
-                'protein': len(results.protein_sequences)
-            }
+            'sequences_processed': sequences_processed,
+            'combined_sequences_generated': len(results.combined_sequences)
         }
     
     def _is_valid_dna_sequence(self, sequence: str) -> bool:
@@ -573,21 +549,7 @@ class SequenceVariantApplier:
             'processing_timestamp': results.processing_timestamp,
             'summary': results.summary,
             # Only save combined sequences (all variants applied together)
-            'combined_sequences': results.combined_sequences,
-            # Save variant information for reference
-            'variants_applied': {
-                vid: {
-                    'variant_id': app.variant_id,
-                    'gene': app.variant_id.split('_')[0] if '_' in app.variant_id else app.variant_id,
-                    'variant_type': app.variant_type,
-                    'position': app.position,
-                    'reference_allele': app.reference_allele,
-                    'alternate_allele': app.alternate_allele,
-                    'validation_status': app.validation_status,
-                    'warnings': app.warnings
-                }
-                for vid, app in results.dna_sequences.items()
-            }
+            'combined_sequences': results.combined_sequences
         }
         
         with open(output_file, 'w') as f:
@@ -653,9 +615,8 @@ def main():
         applier.save_results(results, args.output)
         
         # Print summary
-        logger.info(f"Applied {results.summary['successful_applications']} variants successfully")
-        logger.info(f"Failed to apply {results.summary['failed_applications']} variants")
-        logger.info(f"Success rate: {results.summary['success_rate']:.2%}")
+        logger.info(f"Processed {results.summary['total_variants']} variants")
+        logger.info(f"Generated {results.summary['combined_sequences_generated']} combined sequences")
         logger.info(f"Results saved to {args.output}")
         
     finally:

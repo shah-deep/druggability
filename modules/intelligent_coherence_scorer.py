@@ -164,7 +164,7 @@ class IntelligentCoherenceScorer:
         # Validate input data
         self._validate_input_data(structural_results, ['timestamp'], 'structural_results')
         self._validate_input_data(variant_impact_results, ['pdb_file', 'missense_variants'], 'variant_impact_results')
-        self._validate_input_data(sequence_variant_results, ['protein_sequence'], 'sequence_variant_results')
+        self._validate_input_data(sequence_variant_results, ['combined_sequences'], 'sequence_variant_results')
         self._validate_input_data(coherence_results, ['processing_timestamp', 'cross_scale_consistency', 'tissue_specificity_scores'], 'coherence_results')
         self._validate_input_data(pathway_dynamics_results, ['summary', 'pathway_enrichment'], 'pathway_dynamics_results')
         
@@ -182,7 +182,7 @@ class IntelligentCoherenceScorer:
         
         # Generate causal trace
         causal_trace = self._generate_causal_trace(
-            variant_impact_results, structural_results, pathway_dynamics_results, coherence_results
+            variant_impact_results, structural_results, pathway_dynamics_results, coherence_results, sequence_variant_results
         )
         
         # Create metadata
@@ -408,7 +408,8 @@ class IntelligentCoherenceScorer:
                               variant_impact_results: Dict,
                               structural_results: Dict,
                               pathway_dynamics_results: Dict,
-                              coherence_results: Dict) -> List[CausalTrace]:
+                              coherence_results: Dict,
+                              sequence_variant_results: Dict) -> List[CausalTrace]:
         """Generate detailed causal trace based on analysis results"""
         trace = []
         
@@ -436,8 +437,10 @@ class IntelligentCoherenceScorer:
         
         # Step 2: Apply variant to reference sequence (BioPython)
         if structural_results:
-            # Get protein sequence info
-            protein_sequence = variant_impact_results.get('protein_sequence', '')
+            # Get protein sequence info from sequence variant results
+            protein_sequence = ''
+            if sequence_variant_results and 'combined_sequences' in sequence_variant_results:
+                protein_sequence = sequence_variant_results['combined_sequences'].get('protein', '')
             seq_length = len(protein_sequence) if protein_sequence else 0
             
             trace.append(CausalTrace(
