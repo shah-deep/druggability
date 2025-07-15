@@ -21,8 +21,9 @@ except ImportError:
     logging.warning("GSEApy not available. Install with: pip install gseapy")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
 
 
 class PathwayImpactAnalyzer:
@@ -540,19 +541,19 @@ def main():
     results = analyzer.run_complete_analysis()
     
     # Print summary
-    print("\n=== Pathway Impact Analysis Results ===")
-    print(f"Genes analyzed: {results.get('gene_count', 0)}")
-    print(f"Total pathways analyzed: {results.get('summary', {}).get('total_pathways_analyzed', 0)}")
-    print(f"Significant pathways: {results.get('summary', {}).get('significant_pathways', 0)}")
-    print(f"Target pathways passed: {results.get('summary', {}).get('target_pathways_passed', 0)}")
+    logger.info("\n=== Pathway Impact Analysis Results ===")
+    logger.info(f"Genes analyzed: {results.get('gene_count', 0)}")
+    logger.info(f"Total pathways analyzed: {results.get('summary', {}).get('total_pathways_analyzed', 0)}")
+    logger.info(f"Significant pathways: {results.get('summary', {}).get('significant_pathways', 0)}")
+    logger.info(f"Target pathways passed: {results.get('summary', {}).get('target_pathways_passed', 0)}")
     
     # Print target pathway validation
-    print("\n=== Target Pathway Validation ===")
+    logger.info("\n=== Target Pathway Validation ===")
     for pathway, validation in results.get('validation_results', {}).items():
         status = validation['status']
         score = validation['actual_score']
         expected = validation['expected_min']
-        print(f"{pathway}: {score:.3f} {'≥' if validation['passed'] else '<'} {expected} ({status})")
+        logger.info(f"{pathway}: {score:.3f} {'≥' if validation['passed'] else '<'} {expected} ({status})")
 
 
 if __name__ == "__main__":

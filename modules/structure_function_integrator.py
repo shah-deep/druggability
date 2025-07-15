@@ -24,21 +24,22 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
-# Import existing modules if available
+# Configure logging
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
+
+# Try to import existing modules
 try:
     from modules.enhanced_input_processor import EnhancedInputProcessor
     from modules.pocket_detection import PocketDetector
     from modules.feature_extraction import FeatureExtractor
     EXISTING_MODULES = True
 except ImportError as e:
-    print(f"Error importing modules: {e}")
+    logger.error(f"Error importing modules: {e}")
     EXISTING_MODULES = False
     logging.warning("Existing modules not found. Running in standalone mode.")
     sys.exit(1)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -557,14 +558,14 @@ def main():
     try:
         result = integrator.analyze_structure(args.pdb_file, binding_sites)
         
-        # Print key results
-        print(f"Binding Site Score: {result.binding_site_score:.3f}")
-        print(f"Model Used: {result.model_used}")
+        # Print results
+        logger.info(f"Binding Site Score: {result.binding_site_score:.3f}")
+        logger.info(f"Model Used: {result.model_used}")
         
         if result.warnings:
-            print("Warnings:")
+            logger.warning("Warnings:")
             for warning in result.warnings:
-                print(f"  - {warning}")
+                logger.warning(f"  - {warning}")
         
         # Export results
         integrator.export_results(result, args.output)

@@ -35,8 +35,9 @@ import time
 import xml.etree.ElementTree as ET
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -184,7 +185,6 @@ class ClinVarAnnotator:
             # Strategy 3: Query ClinVar API
             try:
                 api_result = self._query_clinvar_api(variant)
-                print(api_result)
                 if api_result:
                     annotation.clinical_significance = api_result['clinical_significance']
                     annotation.review_status = api_result['review_status']
@@ -721,7 +721,7 @@ def main():
     variants = data.get("missense_variants", [])
 
     if not variants:
-        print("No missense variants found in processed_input.json")
+        logger.warning("No missense variants found in processed_input.json")
         return
 
     # Initialize annotator
@@ -730,38 +730,38 @@ def main():
     # Annotate all variants
     results = annotator.annotate_variants(variants)
 
-    print(f"\n{'='*80}")
-    print("CLINVAR ANNOTATION RESULTS FOR ALL VARIANTS")
-    print(f"{'='*80}")
+    logger.info(f"{'='*80}")
+    logger.info("CLINVAR ANNOTATION RESULTS FOR ALL VARIANTS")
+    logger.info(f"{'='*80}")
 
     for variant in variants:
         variant_id = variant.get("id", "unknown")
         result = results.get(variant_id)
-        print(f"\n{'-'*60}")
-        print(f"Variant ID: {variant_id}")
+        logger.info(f"\n{'-'*60}")
+        logger.info(f"Variant ID: {variant_id}")
         if result is not None:
-            print(f"Gene: {getattr(result, 'gene', None)}")
-            print(f"Protein Change: {getattr(result, 'protein_change', None)}")
-            print(f"Clinical Significance: {getattr(result, 'clinical_significance', None)}")
-            print(f"Review Status: {getattr(result, 'review_status', None)}")
-            print(f"Condition: {getattr(result, 'condition', None)}")
-            print(f"Variation ID: {getattr(result, 'variation_id', None)}")
-            print(f"Last Evaluated: {getattr(result, 'last_evaluated', None)}")
-            print(f"Submitter: {getattr(result, 'submitter', None)}")
-            print(f"Star Rating: {getattr(result, 'star_rating', None)}")
-            print(f"Accession: {getattr(result, 'accession', None)}")
-            print(f"Source: {getattr(result, 'source', None)}")
+            logger.info(f"Gene: {getattr(result, 'gene', None)}")
+            logger.info(f"Protein Change: {getattr(result, 'protein_change', None)}")
+            logger.info(f"Clinical Significance: {getattr(result, 'clinical_significance', None)}")
+            logger.info(f"Review Status: {getattr(result, 'review_status', None)}")
+            logger.info(f"Condition: {getattr(result, 'condition', None)}")
+            logger.info(f"Variation ID: {getattr(result, 'variation_id', None)}")
+            logger.info(f"Last Evaluated: {getattr(result, 'last_evaluated', None)}")
+            logger.info(f"Submitter: {getattr(result, 'submitter', None)}")
+            logger.info(f"Star Rating: {getattr(result, 'star_rating', None)}")
+            logger.info(f"Accession: {getattr(result, 'accession', None)}")
+            logger.info(f"Source: {getattr(result, 'source', None)}")
 
             warnings = getattr(result, 'warnings', None)
             if warnings:
-                print(f"\nWarnings:")
+                logger.info(f"\nWarnings:")
                 for warning in warnings:
-                    print(f"  - {warning}")
+                    logger.info(f"  - {warning}")
         else:
-            print("No annotation result available for this variant.")
+            logger.warning("No annotation result available for this variant.")
         break
 
-    print(f"\n{'='*80}")
+    logger.info(f"\n{'='*80}")
 
 
 if __name__ == "__main__":

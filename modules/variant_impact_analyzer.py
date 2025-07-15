@@ -37,8 +37,9 @@ except ImportError:
     from clinvar_annotator import ClinVarAnnotator, ClinVarAnnotation
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -613,7 +614,7 @@ def main():
     )
     
     # Analyze variants
-    print(f"Analyzing variants from: {args.input}")
+    logger.info(f"Analyzing variants from: {args.input}")
     start_time = time.time()
     results = analyzer.analyze_variants(args.input)
     end_time = time.time()
@@ -622,26 +623,26 @@ def main():
     analyzer.save_results(results, args.output)
     
     # Print summary
-    print(f"Analysis complete in {end_time - start_time:.2f} seconds. Results saved to: {args.output}")
+    logger.info(f"Analysis complete in {end_time - start_time:.2f} seconds. Results saved to: {args.output}")
     
     # Print summary statistics
     variants = results.get('missense_variants', [])
     variants_with_scores = [v for v in variants if v.get('pathogenicity_score')]
     
-    print(f"\nSummary:")
-    print(f"Total variants processed: {len(variants)}")
-    print(f"Variants with pathogenicity scores: {len(variants_with_scores)}")
+    logger.info(f"\nSummary:")
+    logger.info(f"Total variants processed: {len(variants)}")
+    logger.info(f"Variants with pathogenicity scores: {len(variants_with_scores)}")
     
     if variants_with_scores:
         scores = [v['pathogenicity_score'] for v in variants_with_scores]
-        print(f"Average pathogenicity score: {sum(scores)/len(scores):.4f}")
-        print(f"Min pathogenicity score: {min(scores):.4f}")
-        print(f"Max pathogenicity score: {max(scores):.4f}")
+        logger.info(f"Average pathogenicity score: {sum(scores)/len(scores):.4f}")
+        logger.info(f"Min pathogenicity score: {min(scores):.4f}")
+        logger.info(f"Max pathogenicity score: {max(scores):.4f}")
     
     # Count genes
     genes = set(v['gene'] for v in variants)
-    print(f"Unique genes: {len(genes)}")
-    print(f"Genes: {', '.join(sorted(genes))}")
+    logger.info(f"Unique genes: {len(genes)}")
+    logger.info(f"Genes: {', '.join(sorted(genes))}")
 
 
 if __name__ == "__main__":

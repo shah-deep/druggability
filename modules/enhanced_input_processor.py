@@ -26,8 +26,9 @@ except ImportError:
     from transcript_resolver import TranscriptResolver
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
 
 @dataclass
 class InputValidationResult:
@@ -760,13 +761,13 @@ def main():
     
     # Check if any inputs were provided
     if not inputs:
-        print("No inputs provided. Please provide at least one of the following:")
-        print("  --pdb: Path to PDB file")
-        print("  --variants: Path to variants JSON file")
-        print("  --clinical: Path to clinical data JSON file")
-        print("  --dna: DNA sequence")
-        print("  --rna: RNA sequence")
-        print("  --protein: Protein sequence")
+        logger.warning("No inputs provided. Please provide at least one of the following:")
+        logger.warning("  --pdb: Path to PDB file")
+        logger.warning("  --variants: Path to variants JSON file")
+        logger.warning("  --clinical: Path to clinical data JSON file")
+        logger.warning("  --dna: DNA sequence")
+        logger.warning("  --rna: RNA sequence")
+        logger.warning("  --protein: Protein sequence")
         return
     
     # Initialize processor
@@ -780,20 +781,20 @@ def main():
     
     # Get summary
     summary = processor.get_input_summary(processed_input)
-    print("Input Summary:")
-    print(json.dumps(summary, indent=2))
+    logger.info("Input Summary:")
+    logger.info(json.dumps(summary, indent=2))
     
     # Export if valid
     if processed_input.validation_result and processed_input.validation_result.is_valid:
         processor.export_processed_input(processed_input, args.output)
-        print(f"Processed input exported successfully to {args.output}")
+        logger.info(f"Processed input exported successfully to {args.output}")
     else:
-        print("Input validation failed:")
+        logger.error("Input validation failed:")
         if processed_input.validation_result and processed_input.validation_result.errors:
             for error in processed_input.validation_result.errors:
-                print(f"  - {error}")
+                logger.error(f"  - {error}")
         else:
-            print("  - Unknown validation error or validation result missing.")
+            logger.error("  - Unknown validation error or validation result missing.")
 
 if __name__ == "__main__":
     main() 

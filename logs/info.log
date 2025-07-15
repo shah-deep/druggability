@@ -1,0 +1,82 @@
+2025-07-15 01:47:04 - modules.variant_impact_analyzer - INFO - Variant Impact Analyzer initialized with 8 workers
+2025-07-15 01:47:04 - modules.structure_function_integrator - INFO - Found ProteinMPNN model at: ./ProteinMPNN/vanilla_model_weights/v_48_020.pt
+2025-07-15 01:47:04 - modules.pocket_detection - INFO - fpocket validation successful
+2025-07-15 01:47:04 - modules.structure_function_integrator - INFO - StructureFunctionIntegrator initialized
+2025-07-15 01:47:04 - modules.sequence_variant_applier - INFO - Sequence Variant Applier initialized
+2025-07-15 01:47:04 - modules.coherence_analyzer - WARNING - No configuration provided, using default configuration
+2025-07-15 01:47:04 - modules.coherence_analyzer - WARNING - Using default configuration values
+2025-07-15 01:47:04 - modules.coherence_analyzer - INFO - CoherenceAnalyzer initialized
+2025-07-15 01:47:04 - __main__ - INFO - EnhancedPipelineOrchestrator initialized with 8 workers
+2025-07-15 01:47:04 - __main__ - INFO - Starting enhanced pipeline execution
+2025-07-15 01:47:04 - __main__ - INFO - Running initial analysis: input processing and variant impact analysis
+2025-07-15 01:47:04 - __main__ - INFO - Processing inputs with EnhancedInputProcessor
+2025-07-15 01:47:04 - modules.enhanced_input_processor - INFO - Starting enhanced input processing
+2025-07-15 01:47:04 - modules.enhanced_input_processor - INFO - Available models: alphamissense, octo, proteinmpnn, rfdiffusion, esm3, arteraai
+2025-07-15 01:47:04 - modules.enhanced_input_processor - INFO - Processing 4 variants with 8 parallel workers
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Resolved chromosome for BRCA1: 17
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Resolved chromosome for BRCA1: 17
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Resolved chromosome for CFTR: 7
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Resolved chromosome for TP53: 17
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Normalized deletion: AG -> -
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Falling back to canonical transcript for BRCA1
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Falling back to canonical transcript for TP53
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Normalized deletion: CTT -> -
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Falling back to canonical transcript for BRCA1
+2025-07-15 01:47:05 - modules.transcript_resolver - INFO - Falling back to canonical transcript for CFTR
+2025-07-15 01:47:07 - modules.transcript_resolver - INFO - Found canonical transcript for TP53: ENST00000269305.9
+2025-07-15 01:47:07 - modules.transcript_resolver - INFO - Resolved transcript ID for TP53 p.Arg175His: ENST00000269305.9
+2025-07-15 01:47:07 - modules.transcript_resolver - INFO - Found canonical transcript for BRCA1: ENST00000357654.9
+2025-07-15 01:47:07 - modules.transcript_resolver - INFO - Resolved transcript ID for BRCA1 p.Cys61Gly: ENST00000357654.9
+2025-07-15 01:47:08 - modules.transcript_resolver - INFO - Found canonical transcript for BRCA1: ENST00000357654.9
+2025-07-15 01:47:08 - modules.transcript_resolver - INFO - Resolved transcript ID for BRCA1 p.Glu23fs: ENST00000357654.9
+2025-07-15 01:47:08 - modules.transcript_resolver - INFO - Found 33 transcripts for gene TP53
+2025-07-15 01:47:08 - modules.transcript_resolver - INFO - Found canonical transcript for CFTR: ENST00000003084.11
+2025-07-15 01:47:08 - modules.transcript_resolver - INFO - Resolved transcript ID for CFTR p.Phe508del: ENST00000003084.11
+2025-07-15 01:47:09 - modules.transcript_resolver - INFO - Found 41 transcripts for gene BRCA1
+2025-07-15 01:47:10 - modules.transcript_resolver - INFO - Found gencode_id for TP53: ENSG00000141510.19
+2025-07-15 01:47:10 - modules.enhanced_input_processor - INFO - Added gencode_id for TP53: ENSG00000141510.19
+2025-07-15 01:47:10 - modules.enhanced_input_processor - INFO - Processed variant var_001
+2025-07-15 01:47:10 - modules.transcript_resolver - INFO - Found 41 transcripts for gene BRCA1
+2025-07-15 01:47:10 - modules.transcript_resolver - INFO - Found 38 transcripts for gene CFTR
+2025-07-15 01:47:11 - modules.transcript_resolver - INFO - Found gencode_id for BRCA1: ENSG00000012048.26
+2025-07-15 01:47:11 - modules.enhanced_input_processor - INFO - Added gencode_id for BRCA1: ENSG00000012048.26
+2025-07-15 01:47:11 - modules.enhanced_input_processor - INFO - Processed variant var_002
+2025-07-15 01:47:12 - modules.transcript_resolver - INFO - Found gencode_id for BRCA1: ENSG00000012048.26
+2025-07-15 01:47:12 - modules.enhanced_input_processor - INFO - Added gencode_id for BRCA1: ENSG00000012048.26
+2025-07-15 01:47:12 - modules.enhanced_input_processor - INFO - Processed variant var_BRCA1_185delAG
+2025-07-15 01:47:12 - modules.transcript_resolver - INFO - Found gencode_id for CFTR: ENSG00000001626.18
+2025-07-15 01:47:12 - modules.enhanced_input_processor - INFO - Added gencode_id for CFTR: ENSG00000001626.18
+2025-07-15 01:47:12 - modules.enhanced_input_processor - INFO - Processed variant var_CFTR_DF508
+2025-07-15 01:47:12 - modules.enhanced_input_processor - INFO - Cleaned up temporary directory: /tmp/variant_processing_wjorynga
+2025-07-15 01:47:12 - modules.enhanced_input_processor - INFO - Input processing completed successfully
+2025-07-15 01:47:12 - modules.enhanced_input_processor - INFO - Processed input exported to outputs/processed_input_20250715_014704.json
+2025-07-15 01:47:12 - __main__ - INFO - Processed inputs saved to: outputs/processed_input_20250715_014704.json
+2025-07-15 01:47:12 - __main__ - INFO - Running variant impact analysis
+2025-07-15 01:47:12 - modules.variant_impact_analyzer - INFO - Analyzing 4 variants using 8 parallel processes
+2025-07-15 01:47:12 - modules.variant_impact_analyzer - INFO - Using temporary directory: /tmp/variant_analysis_5dfascwq
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - Initialized ClinVar cache database: cache/clinvar/clinvar_cache.db
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - Initialized ClinVar cache database: cache/clinvar/clinvar_cache.db
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - Initialized ClinVar cache database: cache/clinvar/clinvar_cache.db
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - ClinVar Annotator initialized
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - ClinVar Annotator initialized
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - ClinVar Annotator initialized
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - Initialized ClinVar cache database: cache/clinvar/clinvar_cache.db
+2025-07-15 01:47:12 - modules.clinvar_annotator - INFO - ClinVar Annotator initialized
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Found 6 AlphaMissense matches for var_001
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Processed variant var_001
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Found 8 AlphaMissense matches for var_CFTR_DF508
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Processed variant var_CFTR_DF508
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Found 1 AlphaMissense matches for var_002
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Found 5 AlphaMissense matches for var_BRCA1_185delAG
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Processed variant var_002
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Processed variant var_BRCA1_185delAG
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Cleaned up temporary directory: /tmp/variant_analysis_5dfascwq
+2025-07-15 01:47:13 - modules.variant_impact_analyzer - INFO - Results saved to: outputs/variant_impact_results_20250715_014704.json
+2025-07-15 01:47:13 - __main__ - INFO - Variant impact analysis completed: outputs/variant_impact_results_20250715_014704.json
+2025-07-15 01:47:13 - __main__ - INFO - Running structural analysis
+2025-07-15 01:47:13 - modules.structure_function_integrator - INFO - Starting structure analysis for: examples/protein_42.pdb
+2025-07-15 01:47:13 - modules.pocket_detection - INFO - Starting pocket detection for examples/protein_42.pdb
+2025-07-15 01:47:13 - modules.pocket_detection - INFO - Running fpocket command: fpocket -f examples/protein_42.pdb
+2025-07-15 01:47:16 - modules.pocket_detection - INFO - fpocket completed successfully. Output directory: protein_42_out
+2025-07-15 01:47:16 - modules.pocket_detection - INFO - Detected 16 pockets
+2025-07-15 01:47:16 - modules.structure_function_integrator - INFO - Running ProteinMPNN: python3 ProteinMPNN/protein_mpnn_run.py --pdb_path examples/protein_42.pdb --out_folder /tmp/tmpertx7bx4/proteinmpnn_output --model_name v_48_020 --sampling_temp 0.1 --num_seq_per_target 10 --batch_size 1 --seed 42 --backbone_noise 0.02 --save_score 1 --save_probs 1 --chain_id_jsonl /tmp/tmpertx7bx4/chain_constraints.jsonl

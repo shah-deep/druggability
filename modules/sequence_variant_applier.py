@@ -21,6 +21,11 @@ from datetime import datetime
 from collections import defaultdict
 from Bio.Data.IUPACData import protein_letters_3to1
 
+# Configure logging
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
+
 # BioPython imports
 try:
     from Bio import SeqIO
@@ -30,12 +35,8 @@ try:
     from Bio.Data import CodonTable
     BIOPYTHON_AVAILABLE = True
 except ImportError:
-    print("Warning: BioPython not available. Install with: pip install biopython")
+    logger.warning("BioPython not available. Install with: pip install biopython")
     BIOPYTHON_AVAILABLE = False
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -652,10 +653,10 @@ def main():
         applier.save_results(results, args.output)
         
         # Print summary
-        print(f"Applied {results.summary['successful_applications']} variants successfully")
-        print(f"Failed to apply {results.summary['failed_applications']} variants")
-        print(f"Success rate: {results.summary['success_rate']:.2%}")
-        print(f"Results saved to {args.output}")
+        logger.info(f"Applied {results.summary['successful_applications']} variants successfully")
+        logger.info(f"Failed to apply {results.summary['failed_applications']} variants")
+        logger.info(f"Success rate: {results.summary['success_rate']:.2%}")
+        logger.info(f"Results saved to {args.output}")
         
     finally:
         # Clean up temporary file

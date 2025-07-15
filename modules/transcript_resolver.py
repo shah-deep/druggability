@@ -14,7 +14,10 @@ from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 from urllib.parse import quote
 
-logger = logging.getLogger(__name__)
+# Configure logging
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
 
 class TranscriptResolver:
     """Resolve exact transcript IDs for specific variants using Ensembl VEP API"""

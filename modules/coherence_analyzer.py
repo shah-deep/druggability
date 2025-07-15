@@ -27,17 +27,18 @@ from datetime import datetime
 import statistics
 import numpy as np
 
+# Configure logging
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
+
 # Async HTTP client
 try:
     import aiohttp # type: ignore
     AIOHTTP_AVAILABLE = True
 except ImportError:
-    print("Warning: aiohttp not available. Install with: pip install aiohttp")
+    logger.warning("aiohttp not available. Install with: pip install aiohttp")
     AIOHTTP_AVAILABLE = False
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -583,13 +584,13 @@ async def main():
     if args.simple:
         # Simple output format as requested
         simple_output = {"cross_scale_consistency": result.cross_scale_consistency}
-        print(json.dumps(simple_output, indent=2))
+        logger.info(json.dumps(simple_output, indent=2))
     else:
         # Full output
         analyzer.export_results(result, args.output)
-        print(f"✓ Coherence analysis complete")
-        print(f"✓ Results saved to: {args.output}")
-        print(f"✓ Cross-scale consistency: {result.cross_scale_consistency:.3f}")
+        logger.info(f"✓ Coherence analysis complete")
+        logger.info(f"✓ Results saved to: {args.output}")
+        logger.info(f"✓ Cross-scale consistency: {result.cross_scale_consistency:.3f}")
 
 
 if __name__ == "__main__":

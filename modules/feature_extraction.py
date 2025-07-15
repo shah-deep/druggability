@@ -20,20 +20,26 @@ from typing import Dict, List, Optional, Tuple
 import warnings
 warnings.filterwarnings('ignore')
 
+# Configure logging
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
+
 # Try to import required libraries with fallbacks
 try:
     from Bio import PDB
-    from Bio.PDB import DSSP, PDBParser, NeighborSearch
+    from Bio.PDB.PDBParser import PDBParser
+    from Bio.PDB.NeighborSearch import NeighborSearch
     BIOPYTHON_AVAILABLE = True
 except ImportError:
-    print("Warning: BioPython not available. Install with: pip install biopython")
+    logger.warning("BioPython not available. Install with: pip install biopython")
     BIOPYTHON_AVAILABLE = False
 
 try:
     import mdtraj as md
     MDTRAJ_AVAILABLE = True
 except ImportError:
-    print("Warning: MDTraj not available. Install with: pip install mdtraj")
+    logger.warning("MDTraj not available. Install with: pip install mdtraj")
     MDTRAJ_AVAILABLE = False
 
 try:
@@ -41,7 +47,7 @@ try:
     from scipy.special import sph_harm
     SCIPY_AVAILABLE = True
 except ImportError:
-    print("Warning: SciPy not available. Install with: pip install scipy")
+    logger.warning("SciPy not available. Install with: pip install scipy")
     SCIPY_AVAILABLE = False
 
 class FeatureExtractor:
@@ -103,14 +109,14 @@ class FeatureExtractor:
                         # Use robust regex pattern to match the drug score
                         match = re.search(r"Drug Score\s*:\s*([0-9]*\.?[0-9]+)", line)
                         if match:
-                            score = float(match.group(1))
-                            print(f"[DEBUG] Parsed drug score {score} from {pocket_pdb_file}")
-                            return score
+                                                    score = float(match.group(1))
+                        logger.debug(f"Parsed drug score {score} from {pocket_pdb_file}")
+                        return score
         except Exception as e:
-            print(f"Warning: Could not parse druggability score from {pocket_pdb_file}: {e}")
+            logger.warning(f"Could not parse druggability score from {pocket_pdb_file}: {e}")
             return None
         
-        print(f"Warning: Drug Score not found in {pocket_pdb_file}")
+        logger.warning(f"Drug Score not found in {pocket_pdb_file}")
         return None
     
     def parse_fpocket_additional_scores(self, pocket_pdb_file: str) -> Dict[str, float]:
@@ -139,7 +145,7 @@ class FeatureExtractor:
                                 scores[key] = float(match.group(1))
                             break
         except Exception as e:
-            print(f"Warning: Could not parse additional scores from {pocket_pdb_file}: {e}")
+            logger.warning(f"Could not parse additional scores from {pocket_pdb_file}: {e}")
         
         return scores
     
@@ -150,7 +156,7 @@ class FeatureExtractor:
         residues = []
         
         if not BIOPYTHON_AVAILABLE:
-            print("Warning: BioPython not available. Cannot extract residues.")
+            logger.warning("BioPython not available. Cannot extract residues.")
             return residues
         
         try:
@@ -159,11 +165,12 @@ class FeatureExtractor:
             
             # Get all atoms
             atoms = []
-            for model in structure:
-                for chain in model:
-                    for residue in chain:
-                        for atom in residue:
-                            atoms.append((atom, residue))
+            if structure is not None:
+                for model in structure:
+                    for chain in model:
+                        for residue in chain:
+                            for atom in residue:
+                                atoms.append((atom, residue))
             
             # Find residues within radius
             for atom, residue in atoms:
@@ -176,7 +183,7 @@ class FeatureExtractor:
                         residues.append(res_name)
         
         except Exception as e:
-            print(f"Warning: Error getting pocket residues: {e}")
+            logger.warning(f"Error getting pocket residues: {e}")
         
         return residues
     
@@ -237,7 +244,7 @@ class FeatureExtractor:
             return len(residues) * 0.1 + np.random.random() * 0.1
         
         except Exception as e:
-            print(f"Warning: Error calculating shape complexity: {e}")
+            logger.warning(f"Error calculating shape complexity: {e}")
             return 0.0
     
     def calculate_solvent_accessibility(self, residues: List[str], pocket_center: List[float]) -> float:
@@ -261,7 +268,7 @@ class FeatureExtractor:
         pocket_id = pocket_data.get('pocket_id', 0)
         pocket_center = pocket_data.get('center', [0.0, 0.0, 0.0])
         
-        print(f"Extracting features for pocket {pocket_id}")
+        logger.info(f"Extracting features for pocket {pocket_id}")
         
         # Get pocket residues
         residues = self.get_pocket_residues(pdb_file, pocket_center)
@@ -323,11 +330,13 @@ class FeatureExtractor:
         """
         # Load pocket data
         pockets = self.load_pocket_data(pocket_json_file)
-        
+        if pockets is None:
+            pockets = []
+
         if not pockets:
             raise RuntimeError("No pockets found in input file")
         
-        print(f"Extracting features for {len(pockets)} pockets")
+        logger.info(f"Extracting features for {len(pockets)} pockets")
         
         # Extract features for each pocket
         all_features = {}
@@ -344,7 +353,7 @@ class FeatureExtractor:
                 features = self.extract_pocket_features(pocket_data, pdb_file, pocket_pdb_file)
                 all_features[f"Pocket_{pocket_id}"] = features
             except Exception as e:
-                print(f"Warning: Error extracting features for pocket {pocket_id}: {e}")
+                logger.warning(f"Error extracting features for pocket {pocket_id}: {e}")
                 continue
         
         return all_features
@@ -353,7 +362,7 @@ class FeatureExtractor:
         """Save features to JSON file."""
         with open(output_file, 'w') as f:
             json.dump(features, f, indent=2)
-        print(f"Features saved to {output_file}")
+        logger.info(f"Features saved to {output_file}")
 
 def main():
     """Main function for command-line interface."""
@@ -380,12 +389,12 @@ def main():
         # Save results
         extractor.save_features_json(features, args.output)
         
-        print(f"\nFeature extraction completed successfully!")
-        print(f"Extracted features for {len(features)} pockets")
-        print(f"Results saved to: {args.output}")
+        logger.info(f"\nFeature extraction completed successfully!")
+        logger.info(f"Extracted features for {len(features)} pockets")
+        logger.info(f"Results saved to: {args.output}")
         
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

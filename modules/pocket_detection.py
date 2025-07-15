@@ -19,6 +19,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import re
 
+# Configure logging
+from .logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
+
 class PocketDetector:
     """
     A class for detecting protein pockets using fpocket and optionally DeepSite.
@@ -43,12 +48,12 @@ class PocketDetector:
                 # Try without --version flag
                 result = subprocess.run([self.fpocket_path], 
                                       capture_output=True, text=True, timeout=10)
-            print(f"fpocket validation successful")
+            logger.info("fpocket validation successful")
         except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
-            print("Warning: fpocket not found. Please install fpocket first.")
-            print("Installation instructions:")
-            print("1. Using conda: conda install -c conda-forge fpocket")
-            print("2. From source: https://github.com/Discngine/fpocket")
+            logger.warning("Warning: fpocket not found. Please install fpocket first.")
+            logger.info("Installation instructions:")
+            logger.info("1. Using conda: conda install -c conda-forge fpocket")
+            logger.info("2. From source: https://github.com/Discngine/fpocket")
 
     def run_fpocket(self, pdb_file: str, output_dir: Optional[str] = None) -> str:
         """
@@ -70,14 +75,14 @@ class PocketDetector:
         if output_dir:
             cmd.extend(["-o", output_dir])
 
-        print(f"Running fpocket command: {' '.join(cmd)}")
+        logger.info(f"Running fpocket command: {' '.join(cmd)}")
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
             if result.returncode != 0:
-                print(f"fpocket stderr: {result.stderr}")
-                print(f"fpocket stdout: {result.stdout}")
+                logger.error(f"fpocket stderr: {result.stderr}")
+                logger.error(f"fpocket stdout: {result.stdout}")
                 raise subprocess.CalledProcessError(result.returncode, cmd)
 
             # Determine output directory
@@ -88,7 +93,7 @@ class PocketDetector:
                 pdb_basename = Path(pdb_file).stem
                 fpocket_output_dir = f"{pdb_basename}_out"
 
-            print(f"fpocket completed successfully. Output directory: {fpocket_output_dir}")
+            logger.info(f"fpocket completed successfully. Output directory: {fpocket_output_dir}")
             return fpocket_output_dir
 
         except subprocess.TimeoutExpired:
@@ -118,7 +123,7 @@ class PocketDetector:
                     break
 
         if not os.path.exists(info_file):
-            print(f"Warning: fpocket info file not found in {output_dir}")
+            logger.warning(f"Warning: fpocket info file not found in {output_dir}")
             return self._parse_pocket_files(output_dir)
 
         try:
@@ -135,7 +140,7 @@ class PocketDetector:
                     pockets.append(pocket_data)
 
         except Exception as e:
-            print(f"Error parsing fpocket info file: {e}")
+            logger.error(f"Error parsing fpocket info file: {e}")
             return self._parse_pocket_files(output_dir)
 
         return pockets
@@ -254,7 +259,7 @@ class PocketDetector:
         Returns:
             Tuple[List[Dict], str]: (List of pocket dictionaries, output directory path)
         """
-        print(f"Starting pocket detection for {pdb_file}")
+        logger.info(f"Starting pocket detection for {pdb_file}")
 
         # Run fpocket
         fpocket_output_dir = self.run_fpocket(pdb_file, output_dir)
@@ -262,7 +267,7 @@ class PocketDetector:
         # Parse results
         pockets = self.parse_fpocket_output(fpocket_output_dir)
 
-        print(f"Detected {len(pockets)} pockets")
+        logger.info(f"Detected {len(pockets)} pockets")
 
         return pockets, fpocket_output_dir
 
@@ -277,7 +282,7 @@ class PocketDetector:
         with open(output_file, 'w') as f:
             json.dump(pockets, f, indent=2)
 
-        print(f"Pocket information saved to {output_file}")
+        logger.info(f"Pocket information saved to {output_file}")
 
 
 def main():
@@ -303,12 +308,12 @@ def main():
         # Save results
         detector.save_pockets_json(pockets, output_json)
 
-        print(f"\nPocket detection completed successfully!")
-        print(f"Results saved to: {output_json}")
-        print(f"fpocket output directory: {output_dir}")
+        logger.info(f"\nPocket detection completed successfully!")
+        logger.info(f"Results saved to: {output_json}")
+        logger.info(f"fpocket output directory: {output_dir}")
 
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         sys.exit(1)
 
 
