@@ -1,0 +1,41 @@
+{
+  "compound_analysis": {
+    "mechanistic_coherence": {
+      "overall_score": 0.7262461796817071,
+      "coherence_category": "MEDIUM_COHERENCE",
+      "category_scores": {
+        "genotype_pathogenicity": 0.9623912499999999,
+        "structure_function": 0.56972,
+        "pathway_enrichment": 0.8304614687268287,
+        "clinical_translatability": 0.542412
+      },
+      "causal_trace": [
+        {
+          "step": 1,
+          "level": "molecular",
+          "description": "TP53 variant p.Arg175His (chr17:17498) classified as Likely_Pathogenic by AlphaMissense (score: 0.980) and Pathogenic by ClinVar, indicating high pathogenicity risk"
+        },
+        {
+          "step": 2,
+          "level": "molecular",
+          "description": "BioPython applied variant to reference protein sequence (9033 amino acids), enabling structural impact prediction and sequence-based analysis"
+        },
+        {
+          "step": 3,
+          "level": "pathway",
+          "description": "GSEApy pathway enrichment analysis of 448 pathways identified 413 significant pathways. Top enriched: p53_signaling (1.96), DNA_repair (1.46), Apoptosis (0.97), suggesting dysregulated cellular processes"
+        },
+        {
+          "step": 4,
+          "level": "molecular",
+          "description": "ProteinMPNN (ProteinMPNN_v_48_020) structural analysis shows moderate binding site score (0.450) and good structural plausibility (1.251), indicating moderate druggability potential"
+        },
+        {
+          "step": 5,
+          "level": "clinical",
+          "description": "GTEx tissue-specific analysis shows TP53 in Breast_Mammary_Tissue (TPM: 1.00). Cross-scale consistency: moderate (0.612), supporting clinical relevance assessment"
+        }
+      ]
+    }
+  }
+}

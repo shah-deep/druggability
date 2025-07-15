@@ -38,6 +38,7 @@ from modules.structure_function_integrator import StructureFunctionIntegrator
 from modules.sequence_variant_applier import SequenceVariantApplier
 from modules.coherence_analyzer import CoherenceAnalyzer
 from modules.pathway_dynamics_analyzer import PathwayImpactAnalyzer
+from modules.intelligent_coherence_scorer import IntelligentCoherenceScorer
 
 # Configure logging
 from modules.logging_config import setup_logging, get_logger
@@ -54,6 +55,7 @@ class PipelineResult:
     sequence_variant_file: str
     coherence_results_file: str
     pathway_dynamics_file: str
+    final_results_file: str
     execution_time: float
     success: bool
     errors: List[str] = field(default_factory=list)
@@ -85,6 +87,7 @@ class EnhancedPipelineOrchestrator:
         self.structure_integrator = StructureFunctionIntegrator()
         self.sequence_applier = SequenceVariantApplier()
         self.coherence_analyzer = CoherenceAnalyzer()
+        self.intelligent_scorer = IntelligentCoherenceScorer()
         
         logger.info(f"EnhancedPipelineOrchestrator initialized with {self.max_workers} workers")
     
@@ -113,6 +116,7 @@ class EnhancedPipelineOrchestrator:
             sequence_variant_file="",
             coherence_results_file="",
             pathway_dynamics_file="",
+            final_results_file="",
             execution_time=0.0,
             success=False
         )
@@ -142,6 +146,16 @@ class EnhancedPipelineOrchestrator:
             result.sequence_variant_file = parallel_results['sequence_variant_file']
             result.coherence_results_file = parallel_results['coherence_results_file']
             result.pathway_dynamics_file = parallel_results['pathway_dynamics_file']
+            
+            # Step 6: Run intelligent coherence scoring
+            final_results_file = self._run_intelligent_coherence_scoring(
+                result.structural_results_file,
+                result.variant_impact_file,
+                result.sequence_variant_file,
+                result.coherence_results_file,
+                result.pathway_dynamics_file
+            )
+            result.final_results_file = final_results_file
             
             result.success = True
             result.execution_time = time.time() - start_time
@@ -360,6 +374,30 @@ class EnhancedPipelineOrchestrator:
         logger.info(f"Pathway dynamics analysis completed: {output_file}")
         return {'type': 'pathway_dynamics', 'file': str(output_file)}
     
+    def _run_intelligent_coherence_scoring(self,
+                                         structural_results_file: str,
+                                         variant_impact_file: str,
+                                         sequence_variant_file: str,
+                                         coherence_results_file: str,
+                                         pathway_dynamics_file: str) -> str:
+        """Run intelligent coherence scoring"""
+        logger.info("Running intelligent coherence scoring")
+        
+        output_file = self.output_dir / f"final_results_{self.timestamp}.json"
+        
+        # Run intelligent coherence scoring
+        self.intelligent_scorer.run_scoring_pipeline(
+            structural_results_file,
+            variant_impact_file,
+            sequence_variant_file,
+            coherence_results_file,
+            pathway_dynamics_file,
+            str(output_file)
+        )
+        
+        logger.info(f"Intelligent coherence scoring completed: {output_file}")
+        return str(output_file)
+    
     def cleanup(self):
         """Clean up temporary files and resources"""
         try:
@@ -407,6 +445,7 @@ def main():
             logger.info(f"  Sequence variant: {result.sequence_variant_file}")
             logger.info(f"  Coherence results: {result.coherence_results_file}")
             logger.info(f"  Pathway dynamics: {result.pathway_dynamics_file}")
+            logger.info(f"  Final results: {result.final_results_file}")
         else:
             logger.error(f"Pipeline failed: {result.errors}")
             

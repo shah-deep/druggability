@@ -353,3 +353,29 @@
 2025-07-15 01:54:12 - __main__ - INFO -   Sequence variant: outputs/sequence_variant_results_20250715_015155.json
 2025-07-15 01:54:12 - __main__ - INFO -   Coherence results: outputs/coherence_results_20250715_015155.json
 2025-07-15 01:54:12 - __main__ - INFO -   Pathway dynamics: outputs/pathway_dynamics_results_20250715_015155.json
+2025-07-15 02:45:10 - modules.intelligent_coherence_scorer - INFO - IntelligentCoherenceScorer initialized
+2025-07-15 02:45:10 - modules.intelligent_coherence_scorer - INFO - Starting aggregation and scoring of pipeline outputs
+2025-07-15 02:45:10 - modules.intelligent_coherence_scorer - INFO - Aggregation complete. Overall score: 0.726, Category: MEDIUM_COHERENCE
+2025-07-15 02:45:10 - modules.intelligent_coherence_scorer - INFO - Final results saved to: outputs/test_final_results.json
+2025-07-15 02:46:12 - modules.variant_impact_analyzer - INFO - Variant Impact Analyzer initialized with 8 workers
+2025-07-15 02:46:12 - modules.structure_function_integrator - INFO - Found ProteinMPNN model at: ./ProteinMPNN/vanilla_model_weights/v_48_020.pt
+2025-07-15 02:46:12 - modules.pocket_detection - INFO - fpocket validation successful
+2025-07-15 02:46:12 - modules.structure_function_integrator - INFO - StructureFunctionIntegrator initialized
+2025-07-15 02:46:12 - modules.sequence_variant_applier - INFO - Sequence Variant Applier initialized
+2025-07-15 02:46:12 - modules.coherence_analyzer - WARNING - No configuration provided, using default configuration
+2025-07-15 02:46:12 - modules.coherence_analyzer - WARNING - Using default configuration values
+2025-07-15 02:46:12 - modules.coherence_analyzer - INFO - CoherenceAnalyzer initialized
+2025-07-15 02:46:12 - modules.intelligent_coherence_scorer - INFO - IntelligentCoherenceScorer initialized
+2025-07-15 02:46:12 - orchestrator.enhanced_pipeline_orchestrator - INFO - EnhancedPipelineOrchestrator initialized with 4 workers
+2025-07-15 02:48:10 - modules.intelligent_coherence_scorer - INFO - IntelligentCoherenceScorer initialized
+2025-07-15 02:48:10 - modules.intelligent_coherence_scorer - INFO - Starting aggregation and scoring of pipeline outputs
+2025-07-15 02:48:10 - modules.intelligent_coherence_scorer - INFO - Aggregation complete. Overall score: 0.726, Category: MEDIUM_COHERENCE
+2025-07-15 02:48:10 - modules.intelligent_coherence_scorer - INFO - Final results saved to: outputs/final_results_20250715_015155.json
+2025-07-15 02:51:52 - modules.intelligent_coherence_scorer - INFO - IntelligentCoherenceScorer initialized
+2025-07-15 02:51:52 - modules.intelligent_coherence_scorer - INFO - Starting aggregation and scoring of pipeline outputs
+2025-07-15 02:51:52 - modules.intelligent_coherence_scorer - INFO - Aggregation complete. Overall score: 0.726, Category: MEDIUM_COHERENCE
+2025-07-15 02:51:52 - modules.intelligent_coherence_scorer - INFO - Final results saved to: outputs/enhanced_final_results_20250715_015155.json
+2025-07-15 02:54:18 - modules.intelligent_coherence_scorer - INFO - IntelligentCoherenceScorer initialized
+2025-07-15 02:54:18 - modules.intelligent_coherence_scorer - INFO - Starting aggregation and scoring of pipeline outputs
+2025-07-15 02:54:18 - modules.intelligent_coherence_scorer - INFO - Aggregation complete. Overall score: 0.726, Category: MEDIUM_COHERENCE
+2025-07-15 02:54:18 - modules.intelligent_coherence_scorer - INFO - Final results saved to: outputs/final_results_20250715_015155.json
