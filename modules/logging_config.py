@@ -9,6 +9,16 @@ import logging
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
+class LevelFilter(logging.Filter):
+    """Filter to only allow specific log levels."""
+    
+    def __init__(self, level):
+        super().__init__()
+        self.level = level
+    
+    def filter(self, record):
+        return record.levelno == self.level
+
 def setup_logging():
     """
     Set up centralized logging configuration.
@@ -31,31 +41,34 @@ def setup_logging():
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    # Info file handler
+    # Info file handler - only INFO level
     info_handler = RotatingFileHandler(
         logs_dir / "info.log",
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5
     )
     info_handler.setLevel(logging.INFO)
+    info_handler.addFilter(LevelFilter(logging.INFO))
     info_handler.setFormatter(formatter)
     
-    # Warning file handler
+    # Warning file handler - only WARNING level
     warning_handler = RotatingFileHandler(
         logs_dir / "warning.log",
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5
     )
     warning_handler.setLevel(logging.WARNING)
+    warning_handler.addFilter(LevelFilter(logging.WARNING))
     warning_handler.setFormatter(formatter)
     
-    # Error file handler
+    # Error file handler - only ERROR level
     error_handler = RotatingFileHandler(
         logs_dir / "error.log",
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5
     )
     error_handler.setLevel(logging.ERROR)
+    error_handler.addFilter(LevelFilter(logging.ERROR))
     error_handler.setFormatter(formatter)
     
     # Add handlers to root logger

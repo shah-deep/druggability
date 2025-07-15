@@ -130,12 +130,12 @@ class EnhancedPipelineOrchestrator:
         try:
             logger.info("Starting enhanced pipeline execution")
             
-            # Step 1 & 2: Run initial analysis and structural analysis in parallel
+            # Step 1 & 2: Run initial analysis (input processing + variant impact) and structural analysis in parallel
             logger.info("Running initial analysis and structural analysis in parallel")
             
             # Prepare arguments for parallel processing of initial steps
             initial_parallel_args = [
-                (self._run_initial_analysis, variants_file, clinical_data_file, protein_sequence_file, pdb_file),
+                (self._run_initial_analysis_parallel, variants_file, clinical_data_file, protein_sequence_file, pdb_file),
                 (self._run_structural_analysis, pdb_file)
             ]
             
@@ -185,26 +185,6 @@ class EnhancedPipelineOrchestrator:
         
         return result
     
-    def _run_initial_analysis(self, 
-                             variants_file: str,
-                             clinical_data_file: str,
-                             protein_sequence_file: str,
-                             pdb_file: str) -> Tuple[str, str]:
-        """
-        Run initial analysis: input processing and variant impact analysis
-        
-        Returns:
-            Tuple of (processed_input_file, variant_impact_file)
-        """
-        logger.info("Running initial analysis: input processing and variant impact analysis")
-        
-        # Step 1: Process inputs
-        processed_input_file = self._process_inputs(variants_file, clinical_data_file, protein_sequence_file, pdb_file)
-        
-        # Step 2: Run variant impact analysis
-        variant_impact_file = self._run_variant_impact_analysis(processed_input_file)
-        
-        return processed_input_file, variant_impact_file
     
     def _process_inputs(self, 
                        variants_file: str,
@@ -314,10 +294,7 @@ class EnhancedPipelineOrchestrator:
                                    *args) -> Dict[str, str]:
         """Run a single parallel process"""
         try:
-            if func == self._run_initial_analysis:
-                return self._run_initial_analysis_parallel(*args)
-            else:
-                return func(*args)
+            return func(*args)
         except Exception as e:
             logger.error(f"Error in parallel process {func.__name__}: {e}")
             return {'type': 'error', 'file': '', 'error': str(e)}
@@ -329,9 +306,12 @@ class EnhancedPipelineOrchestrator:
                                      pdb_file: str) -> Dict[str, str]:
         """Run initial analysis in parallel processing context"""
         try:
-            processed_input_file, variant_impact_file = self._run_initial_analysis(
-                variants_file, clinical_data_file, protein_sequence_file, pdb_file
-            )
+            # Step 1: Process inputs
+            processed_input_file = self._process_inputs(variants_file, clinical_data_file, protein_sequence_file, pdb_file)
+            
+            # Step 2: Run variant impact analysis
+            variant_impact_file = self._run_variant_impact_analysis(processed_input_file)
+            
             return {
                 'type': 'initial_analysis',
                 'processed_input_file': processed_input_file,
