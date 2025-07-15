@@ -1,0 +1,34 @@
+[
+  {
+    "id": "var_001",
+    "position": 17498,
+    "reference": "G",
+    "alternate": "A",
+    "gene": "TP53",
+    "protein_change": "p.Arg175His"
+  },
+  {
+    "id": "var_002", 
+    "position": 32906,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "BRCA1",
+    "protein_change": "p.Cys61Gly"
+  },
+  {
+    "id": "var_CFTR_DF508",
+    "position": 11755,
+    "reference": "CTT",
+    "alternate": "",
+    "gene": "CFTR",
+    "protein_change": "p.Phe508del"
+  },
+  {
+    "id": "var_BRCA1_185delAG",
+    "position": 43124,
+    "reference": "AG",
+    "alternate": "",
+    "gene": "BRCA1",
+    "protein_change": "p.Glu23fs"
+  }
+]
