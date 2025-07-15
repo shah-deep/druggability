@@ -213,11 +213,12 @@ class PathwayImpactAnalyzer:
                             no_plot=True
                         )
                         
-                        if hasattr(enr, 'results') and enr.results is not None and not enr.results.empty:
+                        if hasattr(enr, 'results') and enr.results is not None and len(enr.results) > 0:
+                            # enr.results is a list of dicts for enrichr
                             results[gene_set] = {
-                                'enrichment_results': enr.results.to_dict('records'),
-                                'summary': self._summarize_enrichment(enr.results)
-                            }
+                                'enrichment_results': enr.results,
+                                'summary': self._summarize_enrichment(pd.DataFrame(enr.results))
+                            }                            
                     except Exception as e:
                         logger.warning(f"Failed to analyze {gene_set}: {e}")
                         continue
@@ -238,7 +239,7 @@ class PathwayImpactAnalyzer:
                         prerank_res = gp.prerank(
                             rnk=prerank_df,
                             gene_sets=gene_set,
-                            processes=4,
+                            threads=4,
                             permutation_num=100,  # reduce for speed, increase for accuracy
                             outdir=None,
                             seed=42,
@@ -309,7 +310,7 @@ class PathwayImpactAnalyzer:
         summary = {
             'total_pathways': len(enrichment_df),
             'significant_pathways': len(significant),
-            'top_pathways': significant.head(10).to_dict('records') if not significant.empty else [],
+            'top_pathways': significant.head(10).to_dict('records') if not significant.empty else [], # type: ignore
             'max_enrichment_score': enrichment_df[es_col].max() if es_col and es_col in enrichment_df.columns else 0,
             'min_fdr': enrichment_df[fdr_col].min() if not enrichment_df.empty else 1.0
         }
@@ -346,14 +347,30 @@ class PathwayImpactAnalyzer:
                     
                     for target, min_score in target_pathways.items():
                         # More flexible matching for pathway names
-                        target_terms = [
-                            target.replace('_', ' '),
-                            target.replace('_', ''),
-                            'p53 signaling pathway' if target == 'p53_signaling' else None,
-                            'apoptosis' if target == 'Apoptosis' else None,
-                            'dna repair' if target == 'DNA_repair' else None
-                        ]
-                        target_terms = [t for t in target_terms if t is not None]
+                        target_terms = []
+                        
+                        if target == 'p53_signaling':
+                            target_terms = ['p53 signaling pathway', 'p53', 'tp53']
+                        elif target == 'Apoptosis':
+                            target_terms = [
+                                'apoptosis', 'apoptotic', 'cell death', 'death', 'survival', 
+                                'caspase', 'bcl', 'bax', 'p53', 'tp53',
+                                'transcriptional regulation by tp53'
+                            ]
+                        elif target == 'DNA_repair':
+                            target_terms = [
+                                'dna repair', 'dna damage', 'dna-binding', 'dna-templated',
+                                'cellular response to dna damage stimulus',
+                                'positive regulation of dna-binding transcription factor activity',
+                                'regulation of transcription, dna-templated',
+                                'homologous recombination', 'mismatch repair', 'base excision repair',
+                                'double-strand break repair', 'fanconi anemia'
+                            ]
+                        else:
+                            target_terms = [
+                                target.replace('_', ' '),
+                                target.replace('_', ''),
+                            ]
                         
                         matched = any(term in pathway_name for term in target_terms)
                         

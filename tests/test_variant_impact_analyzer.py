@@ -1,4 +1,4 @@
-import pytest
+import pytest # type: ignore
 import os
 import json
 from modules.variant_impact_analyzer import VariantImpactAnalyzer
