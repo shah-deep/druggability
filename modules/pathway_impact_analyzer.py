@@ -335,13 +335,41 @@ class PathwayImpactAnalyzer:
         # Search for target pathways in enrichment results
         for gene_set, results in self.enrichment_results.items():
             if 'enrichment_results' in results:
-                for pathway in results['enrichment_results']:
+                enrichment_data = results['enrichment_results']
+                logger.info(f"Processing {gene_set}: enrichment_data type = {type(enrichment_data)}")
+                
+                # Handle different data structures
+                if isinstance(enrichment_data, list):
+                    pathways = enrichment_data
+                elif isinstance(enrichment_data, dict):
+                    # If it's a dict, convert to list of records
+                    pathways = [enrichment_data]
+                elif hasattr(enrichment_data, 'to_dict'):  # pandas DataFrame
+                    # Convert DataFrame to list of dictionaries
+                    pathways = enrichment_data.to_dict('records')
+                    logger.info(f"Converted DataFrame to {len(pathways)} pathway records")
+                else:
+                    logger.warning(f"Unexpected enrichment_data type: {type(enrichment_data)}")
+                    continue
+                
+                for pathway in pathways:
+                    # Debug: log the pathway structure
+                    if isinstance(pathway, str):
+                        logger.warning(f"Pathway is string: {pathway}")
+                        continue
+                    elif isinstance(pathway, dict):
+                        logger.debug(f"Pathway keys: {list(pathway.keys())}")
+                    else:
+                        logger.warning(f"Unexpected pathway type: {type(pathway)}")
+                        continue
+                    
                     # Try to get pathway name from possible columns
                     pathway_name = (
                         pathway.get('Term') or
                         pathway.get('Name') or
                         pathway.get('term_name') or
                         pathway.get('Gene_set') or
+                        pathway.get('Name') or  # Add this for Reactome
                         ''
                     ).lower()
                     
@@ -445,14 +473,13 @@ class PathwayImpactAnalyzer:
             Dict[str, Any]: Complete analysis report
         """
         validation_results = self.validate_target_scores()
+        # Create the simplified output format
+        pathway_enrichment = {}
+        for pathway, score in self.pathway_scores.items():
+            pathway_enrichment[pathway] = score
+        
         report = {
-            'analysis_timestamp': datetime.now().isoformat(),
-            'input_file': self.input_file,
-            'gene_list': self.gene_list,
-            'gene_count': len(self.gene_list),
-            'enrichment_results': self.enrichment_results,
-            'target_pathway_scores': self.pathway_scores,
-            'validation_results': validation_results,
+            'pathway_enrichment': pathway_enrichment,
             'summary': {
                 'total_pathways_analyzed': sum(len(r.get('enrichment_results', [])) 
                                              for r in self.enrichment_results.values()),

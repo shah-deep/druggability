@@ -1,6 +1,5 @@
 venv
 .env
 __pycache__
-# cache\alphamissense\AlphaMissense_hg38.tsv
-# cache
-# cache/
+cache
+cache/
