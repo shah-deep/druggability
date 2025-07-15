@@ -29,6 +29,7 @@ from collections import Counter
 import argparse
 import pickle
 import time
+import hashlib
 
 # Import the ClinVar annotator
 try:
@@ -67,20 +68,216 @@ class VariantImpactResult:
     processing_timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
+class AlphaMissenseCache:
+    """Cache for AlphaMissense results to avoid repeated database queries"""
+    
+    def __init__(self, cache_dir: str = "cache"):
+        """
+        Initialize AlphaMissense cache
+        
+        Args:
+            cache_dir: Directory to store cache database
+        """
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_db_path = self.cache_dir / "alphamissense" / "alphamissense_cache.db"
+        self._init_cache_db()
+
+    def _init_cache_db(self):
+        """Initialize SQLite cache database"""
+        try:
+            conn = sqlite3.connect(self.cache_db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS alphamissense_cache (
+                    cache_key TEXT PRIMARY KEY,
+                    position INTEGER,
+                    reference TEXT,
+                    alternate TEXT,
+                    gene TEXT,
+                    protein_change TEXT,
+                    pathogenicity_score REAL,
+                    alphamissense_annotation TEXT,
+                    alphamissense_confidence TEXT,
+                    matching_transcripts TEXT,
+                    total_matches INTEGER,
+                    warnings TEXT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Create index for faster lookups
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_variant_lookup 
+                ON alphamissense_cache(position, reference, alternate, gene, protein_change)
+            """)
+            
+            conn.commit()
+            conn.close()
+
+            
+        except Exception as e:
+            logger.error(f"Error initializing AlphaMissense cache database: {e}")
+    
+    def _generate_cache_key(self, variant_data: Dict) -> str:
+        """Generate a unique cache key for a variant"""
+        # Create a hash of the key variant fields
+        key_fields = [
+            str(variant_data.get('position', '')),
+            str(variant_data.get('reference', '')),
+            str(variant_data.get('alternate', '')),
+            str(variant_data.get('gene', '')),
+            str(variant_data.get('protein_change', ''))
+        ]
+        key_string = '|'.join(key_fields)
+        return hashlib.md5(key_string.encode()).hexdigest()
+    
+    def get_cached_result(self, variant_data: Dict) -> Optional[AlphaMissenseResult]:
+        """
+        Get cached AlphaMissense result for a variant
+        
+        Args:
+            variant_data: Variant dictionary containing position, reference, alternate, gene, protein_change
+            
+        Returns:
+            AlphaMissenseResult if found in cache, None otherwise
+        """
+        try:
+            cache_key = self._generate_cache_key(variant_data)
+            
+            conn = sqlite3.connect(self.cache_db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT pathogenicity_score, alphamissense_annotation, alphamissense_confidence,
+                       matching_transcripts, total_matches, warnings
+                FROM alphamissense_cache 
+                WHERE cache_key = ?
+            """, (cache_key,))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                pathogenicity_score, annotation, confidence, transcripts_str, total_matches, warnings_str = result
+                
+                # Parse stored data
+                matching_transcripts = transcripts_str.split('|') if transcripts_str else []
+                warnings = warnings_str.split('|') if warnings_str else []
+                return AlphaMissenseResult(
+                    variant_id=variant_data.get('id', ''),
+                    gene=variant_data.get('gene', ''),
+                    protein_change=variant_data.get('protein_change', ''),
+                    average_pathogenicity_score=pathogenicity_score,
+                    max_occurring_class=annotation,
+                    matching_transcripts=matching_transcripts,
+                    total_matches=total_matches or 0,
+                    confidence=confidence or "low",
+                    warnings=warnings
+                )
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error retrieving from AlphaMissense cache: {e}")
+            return None
+    
+    def cache_result(self, variant_data: Dict, result: AlphaMissenseResult):
+        """
+        Cache AlphaMissense result for a variant
+        
+        Args:
+            variant_data: Variant dictionary
+            result: AlphaMissenseResult to cache
+        """
+        try:
+            cache_key = self._generate_cache_key(variant_data)
+            
+            conn = sqlite3.connect(self.cache_db_path)
+            cursor = conn.cursor()
+            
+            # Prepare data for storage
+            matching_transcripts_str = '|'.join(result.matching_transcripts) if result.matching_transcripts else ''
+            warnings_str = '|'.join(result.warnings) if result.warnings else ''
+            
+            cursor.execute("""
+                INSERT OR REPLACE INTO alphamissense_cache 
+                (cache_key, position, reference, alternate, gene, protein_change,
+                 pathogenicity_score, alphamissense_annotation, alphamissense_confidence,
+                 matching_transcripts, total_matches, warnings)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cache_key,
+                variant_data.get('position'),
+                variant_data.get('reference'),
+                variant_data.get('alternate'),
+                variant_data.get('gene'),
+                variant_data.get('protein_change'),
+                result.average_pathogenicity_score,
+                result.max_occurring_class,
+                result.confidence,
+                matching_transcripts_str,
+                result.total_matches,
+                warnings_str
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            logger.error(f"Error caching AlphaMissense result: {e}")
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        try:
+            conn = sqlite3.connect(self.cache_db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT COUNT(*) FROM alphamissense_cache")
+            total_entries = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(DISTINCT gene) FROM alphamissense_cache")
+            unique_genes = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT AVG(pathogenicity_score) FROM alphamissense_cache WHERE pathogenicity_score IS NOT NULL")
+            avg_score = cursor.fetchone()[0]
+            
+            # Count entries with "none" confidence (these are not cached)
+            cursor.execute("SELECT COUNT(*) FROM alphamissense_cache WHERE alphamissense_confidence = 'none'")
+            none_confidence_count = cursor.fetchone()[0]
+            
+            conn.close()
+            
+            return {
+                'total_entries': total_entries,
+                'unique_genes': unique_genes,
+                'average_pathogenicity_score': avg_score,
+                'cache_size_mb': self.cache_db_path.stat().st_size / (1024 * 1024) if self.cache_db_path.exists() else 0,
+                'none_confidence_entries': none_confidence_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting cache stats: {e}")
+            return {}
+
+
 class VariantImpactAnalyzer:
     """Parallel analyzer for variant impact using AlphaMissense and ClinVar"""
     
     def __init__(self, alphamissense_db_path: str = "cache/alphamissense/alphamissense_hg38.db", 
-                 max_workers: Optional[int] = None):
+                 max_workers: Optional[int] = None, cache_dir: str = "cache"):
         """
         Initialize the variant impact analyzer
         
         Args:
             alphamissense_db_path: Path to AlphaMissense database
             max_workers: Maximum number of parallel processes (default: CPU count)
+            cache_dir: Directory for cache storage
         """
         self.alphamissense_db_path = Path(alphamissense_db_path)
         self.max_workers = max_workers or mp.cpu_count()
+        self.cache = AlphaMissenseCache(cache_dir)
         
         # Validate database exists
         if not self.alphamissense_db_path.exists():
@@ -114,7 +311,6 @@ class VariantImpactAnalyzer:
 
         # Create temporary directory for inter-process communication
         temp_dir = Path(tempfile.mkdtemp(prefix="variant_analysis_"))
-        logger.info(f"Using temporary directory: {temp_dir}")
 
         try:
             # Process variants in parallel
@@ -141,18 +337,18 @@ class VariantImpactAnalyzer:
                         variant['clinvar_annotation'] = clinvar_ann.title()
 
             # Add analysis metadata
-            input_data['variant_impact_analysis'] = {  # type: ignore
-                'analysis_timestamp': datetime.now().isoformat(),
-                'total_variants': len(variants),
-                'parallel_workers': self.max_workers
-            }
+            # input_data['variant_impact_analysis'] = {  # type: ignore
+            #     'analysis_timestamp': datetime.now().isoformat(),
+            #     'total_variants': len(variants),
+            #     'parallel_workers': self.max_workers,
+            #     'cache_stats': self.cache.get_cache_stats()
+            # }
 
             return input_data
 
         finally:
             # Clean up temporary directory
             shutil.rmtree(temp_dir, ignore_errors=True)
-            logger.info(f"Cleaned up temporary directory: {temp_dir}")
     
     def _process_variants_parallel(self, variants: List[Dict], temp_dir: Path) -> Dict[str, VariantImpactResult]:
         """
@@ -170,7 +366,7 @@ class VariantImpactAnalyzer:
         for i, variant in enumerate(variants):
             # Create unique temp file for this variant
             temp_file = temp_dir / f"variant_{i}_{variant['id']}.pkl"
-            process_args.append((variant, str(self.alphamissense_db_path), str(temp_file)))
+            process_args.append((variant, str(self.alphamissense_db_path), str(temp_file), str(self.cache.cache_db_path)))
         
         # Process variants in parallel
         with mp.Pool(processes=self.max_workers) as pool:
@@ -201,22 +397,22 @@ class VariantImpactAnalyzer:
         with open(output_file, 'w') as f:
             json.dump(results, f, indent=2, default=str)
         
-        logger.info(f"Results saved to: {output_file}")
+        
     
     @staticmethod
-    def _process_single_variant_worker(args: Tuple[Dict, str, str]) -> None:
+    def _process_single_variant_worker(args: Tuple[Dict, str, str, str]) -> None:
         """
         Worker function to process a single variant in a separate process
         
         Args:
-            args: Tuple of (variant, alphamissense_db_path, temp_file_path)
+            args: Tuple of (variant, alphamissense_db_path, temp_file_path, cache_db_path)
         """
-        variant, alphamissense_db_path, temp_file_path = args
+        variant, alphamissense_db_path, temp_file_path, cache_db_path = args
         variant_id = variant['id']
         
         try:
             # Create analyzer instance for this process
-            analyzer = SingleVariantAnalyzer(alphamissense_db_path)
+            analyzer = SingleVariantAnalyzer(alphamissense_db_path, cache_db_path)
             
             # Process variant asynchronously
             result = asyncio.run(analyzer.analyze_variant_async(variant))
@@ -225,7 +421,7 @@ class VariantImpactAnalyzer:
             with open(temp_file_path, 'wb') as f:
                 pickle.dump(result, f)
                 
-            logger.info(f"Processed variant {variant_id}")
+
             
         except Exception as e:
             logger.error(f"Error processing variant {variant_id}: {e}")
@@ -255,15 +451,19 @@ class VariantImpactAnalyzer:
 class SingleVariantAnalyzer:
     """Analyzer for a single variant with async I/O"""
     
-    def __init__(self, alphamissense_db_path: str):
+    def __init__(self, alphamissense_db_path: str, cache_db_path: str):
         """
         Initialize single variant analyzer
         
         Args:
             alphamissense_db_path: Path to AlphaMissense database
+            cache_db_path: Path to cache database
         """
         self.alphamissense_db_path = Path(alphamissense_db_path)
+        self.cache_db_path = Path(cache_db_path)
         self.clinvar_annotator = ClinVarAnnotator()
+        self.cache = AlphaMissenseCache(str(self.cache_db_path.parent))
+        self.cache.cache_db_path = self.cache_db_path  # Override cache path for this process
     
     async def analyze_variant_async(self, variant: Dict) -> VariantImpactResult:
         """
@@ -344,11 +544,22 @@ class SingleVariantAnalyzer:
         Returns:
             AlphaMissenseResult with analysis results
         """
+        # Check cache first
+        cached_result = self.cache.get_cached_result(variant_data or {})
+        if cached_result:
+            return cached_result
+        
         # Run database query in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None, self._analyze_alphamissense_sync, variant_id, gene, protein_change, vep_transcript_ids, variant_data
         )
+        
+        # Cache the result (but not if confidence is "none")
+        if variant_data and result.confidence != "none":
+            self.cache.cache_result(variant_data, result)
+
+        
         return result
     
     def _calculate_confidence(self, filtering_method: str, num_matches: int) -> str:
@@ -508,7 +719,7 @@ class SingleVariantAnalyzer:
                                 filtering_method = "pathogenicity"
                                 result.warnings.append(f"Filtered to {len(matches)} high-pathogenicity matches (score > 0.8)")
                             else:
-                                result.warnings.append(f"Strict filtering by protein_variant, ref/alt alleles, and pathogenicity gave no results; using broader position-based matches.")
+                                result.warnings.append(f"Strict filtering by protein_variant and pathogenicity gave no results; using broader position-based matches.")
                     else:
                         # If no variant data available, try filtering by pathogenicity score
                         pathogenicity_query = """
@@ -547,10 +758,10 @@ class SingleVariantAnalyzer:
                 result.matching_transcripts = matching_transcripts
                 result.total_matches = len(matches)
                 
-                logger.info(f"Found {len(matches)} AlphaMissense matches for {variant_id}")
+    
             else:
                 result.warnings.append(f"No AlphaMissense matches found for {variant_id}")
-                logger.warning(f"No AlphaMissense matches found for {variant_id}")
+    
                 # If nothing works, default the pathogenic score to midway
                 result.average_pathogenicity_score = 0.5
                 result.confidence = "none"
@@ -605,12 +816,15 @@ def main():
                        help='AlphaMissense database path (default: cache/alphamissense/alphamissense_hg38.db)')
     parser.add_argument('--workers', '-w', type=int, default=None,
                        help='Number of parallel workers (default: CPU count)')
+    parser.add_argument('--cache-dir', default="cache",
+                       help='Cache directory (default: cache)')
     
     args = parser.parse_args()
     
     analyzer = VariantImpactAnalyzer(
         alphamissense_db_path=args.db_path,
-        max_workers=args.workers
+        max_workers=args.workers,
+        cache_dir=args.cache_dir
     )
     
     # Analyze variants
@@ -623,26 +837,22 @@ def main():
     analyzer.save_results(results, args.output)
     
     # Print summary
-    logger.info(f"Analysis complete in {end_time - start_time:.2f} seconds. Results saved to: {args.output}")
+    logger.info(f"Analysis complete in {end_time - start_time:.2f} seconds")
     
     # Print summary statistics
     variants = results.get('missense_variants', [])
     variants_with_scores = [v for v in variants if v.get('pathogenicity_score')]
     
-    logger.info(f"\nSummary:")
     logger.info(f"Total variants processed: {len(variants)}")
     logger.info(f"Variants with pathogenicity scores: {len(variants_with_scores)}")
     
     if variants_with_scores:
         scores = [v['pathogenicity_score'] for v in variants_with_scores]
         logger.info(f"Average pathogenicity score: {sum(scores)/len(scores):.4f}")
-        logger.info(f"Min pathogenicity score: {min(scores):.4f}")
-        logger.info(f"Max pathogenicity score: {max(scores):.4f}")
     
     # Count genes
     genes = set(v['gene'] for v in variants)
     logger.info(f"Unique genes: {len(genes)}")
-    logger.info(f"Genes: {', '.join(sorted(genes))}")
 
 
 if __name__ == "__main__":
