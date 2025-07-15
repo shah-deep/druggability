@@ -94,6 +94,7 @@ class IntelligentCoherenceScorer:
     def _get_default_config(self) -> Dict:
         """Get default configuration"""
         return {
+            'pipeline_version': 'enhanced_v2',
             'category_weights': {
                 'genotype_pathogenicity': 0.25,
                 'structure_function': 0.25,
@@ -105,7 +106,22 @@ class IntelligentCoherenceScorer:
                 'medium_coherence': 0.6,
                 'low_coherence': 0.4
             },
-            'trace_levels': ['molecular', 'pathway', 'clinical', 'tissue']
+            'trace_levels': ['molecular', 'pathway', 'clinical', 'tissue'],
+            'thresholds': {
+                'binding_site_high': 0.7,
+                'binding_site_moderate': 0.4,
+                'structural_plausibility_good': 1.5,
+                'structural_plausibility_moderate': 2.0,
+                'tissue_expression_min': 0.5,
+                'consistency_high': 0.7,
+                'consistency_moderate': 0.5,
+                'pathogenicity_high': 0.7,
+                'pathogenicity_consistency_threshold': 0.5,
+                'key_pathways': ['p53_signaling', 'DNA_repair', 'Apoptosis'],
+                'key_pathway_enrichment_threshold': 1.0,
+                'consistency_boost': 0.1,
+                'key_pathway_boost': 0.1
+            }
         }
     
     def _define_coherence_categories(self) -> List[CoherenceCategory]:
@@ -145,6 +161,13 @@ class IntelligentCoherenceScorer:
         coherence_results = self._load_json(coherence_results_file)
         pathway_dynamics_results = self._load_json(pathway_dynamics_file)
         
+        # Validate input data
+        self._validate_input_data(structural_results, ['timestamp'], 'structural_results')
+        self._validate_input_data(variant_impact_results, ['pdb_file', 'missense_variants'], 'variant_impact_results')
+        self._validate_input_data(sequence_variant_results, ['protein_sequence'], 'sequence_variant_results')
+        self._validate_input_data(coherence_results, ['processing_timestamp', 'cross_scale_consistency', 'tissue_specificity_scores'], 'coherence_results')
+        self._validate_input_data(pathway_dynamics_results, ['summary', 'pathway_enrichment'], 'pathway_dynamics_results')
+        
         # Calculate individual category scores
         category_scores = self._calculate_category_scores(
             structural_results, variant_impact_results, sequence_variant_results,
@@ -179,6 +202,19 @@ class IntelligentCoherenceScorer:
         logger.info(f"Aggregation complete. Overall score: {overall_score:.3f}, Category: {coherence_category}")
         
         return result
+    
+    def _validate_input_data(self, results_dict: Dict, expected_keys: List[str], data_name: str) -> bool:
+        """Validate input data and log warnings for missing data"""
+        if not results_dict:
+            logger.warning(f"No {data_name} data provided - using fallback values")
+            return False
+        
+        missing_keys = [key for key in expected_keys if key not in results_dict]
+        if missing_keys:
+            logger.warning(f"Missing expected keys in {data_name}: {missing_keys}")
+            return False
+        
+        return True
     
     def _load_json(self, file_path: str) -> Dict:
         """Load JSON file with error handling"""
@@ -221,11 +257,15 @@ class IntelligentCoherenceScorer:
     
     def _calculate_genotype_pathogenicity_score(self, variant_impact_results: Dict) -> float:
         """Calculate genotype pathogenicity score from variant impact results"""
+        thresholds = self.config['thresholds']
+        
         if not variant_impact_results or 'missense_variants' not in variant_impact_results:
+            logger.warning("No variant impact data available - using fallback score of 0.0")
             return 0.0
         
         variants = variant_impact_results['missense_variants']
         if not variants:
+            logger.warning("No missense variants found in variant impact data - using fallback score of 0.0")
             return 0.0
         
         # Calculate average pathogenicity score
@@ -235,19 +275,28 @@ class IntelligentCoherenceScorer:
                 pathogenicity_scores.append(variant['pathogenicity_score'])
         
         if not pathogenicity_scores:
+            logger.warning("No pathogenicity scores found in variants - using fallback score of 0.0")
             return 0.0
         
         # Normalize to 0-1 scale (assuming scores are already 0-1)
         avg_score = statistics.mean(pathogenicity_scores)
         
         # Boost score if variants are consistently pathogenic
-        consistency_boost = 0.1 if len([s for s in pathogenicity_scores if s > 0.7]) > len(pathogenicity_scores) * 0.5 else 0.0
+        high_pathogenicity_count = len([s for s in pathogenicity_scores if s > thresholds['pathogenicity_high']])
+        consistency_threshold = len(pathogenicity_scores) * thresholds['pathogenicity_consistency_threshold']
+        consistency_boost = thresholds['consistency_boost'] if high_pathogenicity_count > consistency_threshold else 0.0
         
-        return min(1.0, avg_score + consistency_boost)
+        final_score = min(1.0, avg_score + consistency_boost)
+        logger.debug(f"Genotype pathogenicity score: {final_score:.3f} (avg: {avg_score:.3f}, boost: {consistency_boost:.3f})")
+        
+        return final_score
     
     def _calculate_structure_function_score(self, structural_results: Dict) -> float:
         """Calculate structure function score from structural results"""
+        thresholds = self.config['thresholds']
+        
         if not structural_results:
+            logger.warning("No structural results data available - using fallback score of 0.0")
             return 0.0
         
         # Extract relevant scores
@@ -260,16 +309,23 @@ class IntelligentCoherenceScorer:
         
         # Combine scores with weights
         structure_score = (binding_site_score * 0.6 + normalized_plausibility * 0.4)
+        final_score = min(1.0, structure_score)
         
-        return min(1.0, structure_score)
+        logger.debug(f"Structure function score: {final_score:.3f} (binding: {binding_site_score:.3f}, plausibility: {normalized_plausibility:.3f})")
+        
+        return final_score
     
     def _calculate_pathway_enrichment_score(self, pathway_dynamics_results: Dict) -> float:
         """Calculate pathway enrichment score from pathway dynamics results"""
+        thresholds = self.config['thresholds']
+        
         if not pathway_dynamics_results or 'pathway_enrichment' not in pathway_dynamics_results:
+            logger.warning("No pathway dynamics data available - using fallback score of 0.0")
             return 0.0
         
         pathway_enrichment = pathway_dynamics_results['pathway_enrichment']
         if not pathway_enrichment:
+            logger.warning("No pathway enrichment data found - using fallback score of 0.0")
             return 0.0
         
         # Calculate average enrichment score
@@ -280,15 +336,23 @@ class IntelligentCoherenceScorer:
         normalized_score = min(1.0, avg_enrichment / 2.0)
         
         # Boost if key pathways are enriched
-        key_pathways = ['p53_signaling', 'DNA_repair', 'Apoptosis']
-        key_pathway_boost = 0.1 if any(pathway in pathway_enrichment and pathway_enrichment[pathway] > 1.0 
-                                      for pathway in key_pathways) else 0.0
+        key_pathways = thresholds['key_pathways']
+        key_pathway_boost = thresholds['key_pathway_boost'] if any(
+            pathway in pathway_enrichment and pathway_enrichment[pathway] > thresholds['key_pathway_enrichment_threshold'] 
+            for pathway in key_pathways
+        ) else 0.0
         
-        return min(1.0, normalized_score + key_pathway_boost)
+        final_score = min(1.0, normalized_score + key_pathway_boost)
+        logger.debug(f"Pathway enrichment score: {final_score:.3f} (avg enrichment: {avg_enrichment:.3f}, boost: {key_pathway_boost:.3f})")
+        
+        return final_score
     
     def _calculate_clinical_translatability_score(self, coherence_results: Dict) -> float:
         """Calculate clinical translatability score from coherence results"""
+        thresholds = self.config['thresholds']
+        
         if not coherence_results:
+            logger.warning("No coherence results data available - using fallback score of 0.0")
             return 0.0
         
         # Extract cross-scale consistency
@@ -306,11 +370,18 @@ class IntelligentCoherenceScorer:
             
             if gene_scores:
                 tissue_specificity = statistics.mean(gene_scores)
+            else:
+                logger.warning("No valid tissue specificity scores found")
+        else:
+            logger.warning("No tissue specificity scores found in coherence results")
         
         # Combine scores
         clinical_score = (cross_scale_consistency * 0.7 + tissue_specificity * 0.3)
+        final_score = min(1.0, clinical_score)
         
-        return min(1.0, clinical_score)
+        logger.debug(f"Clinical translatability score: {final_score:.3f} (consistency: {cross_scale_consistency:.3f}, tissue: {tissue_specificity:.3f})")
+        
+        return final_score
     
     def _calculate_overall_score(self, category_scores: CategoryScore) -> float:
         """Calculate overall coherence score"""
@@ -402,9 +473,14 @@ class IntelligentCoherenceScorer:
             binding_site_score = structural_results.get('binding_site_score', 0.0)
             structural_plausibility = structural_results.get('structural_plausibility', 0.0)
             
-            # Interpret structural scores
-            binding_interpretation = "high" if binding_site_score > 0.7 else "moderate" if binding_site_score > 0.4 else "low"
-            plausibility_interpretation = "good" if structural_plausibility < 1.5 else "moderate" if structural_plausibility < 2.0 else "poor"
+            # Interpret structural scores using configurable thresholds
+            thresholds = self.config['thresholds']
+            binding_interpretation = ("high" if binding_site_score > thresholds['binding_site_high'] 
+                                   else "moderate" if binding_site_score > thresholds['binding_site_moderate'] 
+                                   else "low")
+            plausibility_interpretation = ("good" if structural_plausibility < thresholds['structural_plausibility_good'] 
+                                        else "moderate" if structural_plausibility < thresholds['structural_plausibility_moderate'] 
+                                        else "poor")
             
             trace.append(CausalTrace(
                 step=4,
@@ -416,16 +492,19 @@ class IntelligentCoherenceScorer:
         if coherence_results and 'tissue_specificity_scores' in coherence_results:
             tissue_scores = coherence_results['tissue_specificity_scores']
             cross_scale_consistency = coherence_results.get('cross_scale_consistency', 0.0)
+            thresholds = self.config['thresholds']
             
             # Get tissue-specific expression data
             tissue_info = []
             for gene, gene_tissues in tissue_scores.items():
                 for tissue, score in gene_tissues.items():
-                    if score > 0.5:  # Only include tissues with meaningful expression
+                    if score > thresholds['tissue_expression_min']:  # Only include tissues with meaningful expression
                         tissue_info.append(f"{gene} in {tissue} (TPM: {score:.2f})")
             
             tissue_summary = "; ".join(tissue_info[:3]) if tissue_info else "limited tissue-specific expression"
-            consistency_level = "high" if cross_scale_consistency > 0.7 else "moderate" if cross_scale_consistency > 0.5 else "low"
+            consistency_level = ("high" if cross_scale_consistency > thresholds['consistency_high'] 
+                              else "moderate" if cross_scale_consistency > thresholds['consistency_moderate'] 
+                              else "low")
             
             trace.append(CausalTrace(
                 step=5,
@@ -450,7 +529,7 @@ class IntelligentCoherenceScorer:
         """Create metadata for the final result"""
         metadata = {
             'analysis_timestamp': datetime.now().isoformat(),
-            'pipeline_version': 'enhanced_v2',
+            'pipeline_version': self.config.get('pipeline_version', 'enhanced_v2'),
             'input_files': {
                 'structural_results': structural_results.get('timestamp', ''),
                 'variant_impact_results': variant_impact_results.get('pdb_file', ''),
