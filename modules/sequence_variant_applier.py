@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Any, Tuple, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 from collections import defaultdict
+from Bio.Data.IUPACData import protein_letters_3to1
 
 # BioPython imports
 try:
@@ -236,6 +237,11 @@ class SequenceVariantApplier:
         local_position = self._convert_genomic_to_local_position(
             position, reference_sequence, variant_id
         )
+        
+        # Log what we're looking for vs what we found
+        if local_position >= 0 and local_position < len(reference_sequence):
+            found_sequence = reference_sequence[local_position:local_position + len(reference_allele)] if reference_allele else reference_sequence[local_position]
+            logger.info(f"Variant {variant_id}: expected '{reference_allele}' at position {position}, found '{found_sequence}'")
         
         # Validate variant
         validation_result = self._validate_variant(
@@ -588,31 +594,73 @@ class SequenceVariantApplier:
         
         logger.info(f"Results saved to {output_file}")
 
+    def read_clean_protein_sequence(self, file_path: str) -> str:
+        """
+        Read a protein sequence from a text file, remove non-alphabetic characters, and join lines.
+        Args:
+            file_path: Path to the protein sequence text file
+        Returns:
+            Cleaned protein sequence string
+        """
+        with open(file_path, 'r') as f:
+            raw = f.read()
+        # Remove all non-alphabetic characters (keep only A-Z, a-z)
+        cleaned = ''.join([c for c in raw if c.isalpha()])
+        return cleaned
+
 
 def main():
     """Main CLI interface for sequence variant applier"""
     import argparse
     
     parser = argparse.ArgumentParser(description="Apply variants to reference sequences")
-    parser.add_argument("input_file", nargs="?", help="Input JSON file with variants", default="variant_impact_results.json")
+    parser.add_argument("input_file", nargs="?", help="Input JSON file with variants", default="processed_input.json")
     parser.add_argument("-o", "--output", help="Output JSON file", 
                        default="sequence_variant_results.json")
+    parser.add_argument("--protein-seq-file", help="Path to protein sequence text file", 
+                       default="examples/ex_protein_seq.txt")
     
     args = parser.parse_args()
     
     # Initialize applier
     applier = SequenceVariantApplier()
     
-    # Apply variants
-    results = applier.apply_variants_to_sequences(args.input_file)
+    # Read and clean protein sequence
+    protein_sequence = applier.read_clean_protein_sequence(args.protein_seq_file)
+    logger.info(f"Loaded protein sequence of length: {len(protein_sequence)}")
     
-    # Save results
-    applier.save_results(results, args.output)
+    # Load input data (variants)
+    with open(args.input_file, 'r') as f:
+        input_data = json.load(f)
+    variants = input_data.get('missense_variants', [])
+    logger.info(f"Loaded {len(variants)} variants")
     
-    # Print summary
-    print(f"Applied {results.summary['successful_applications']} variants successfully")
-    print(f"Failed to apply {results.summary['failed_applications']} variants")
-    print(f"Success rate: {results.summary['success_rate']:.2%}")
+    # Create a modified input data with the protein sequence
+    modified_input_data = input_data.copy()
+    modified_input_data['protein_sequence'] = protein_sequence
+    
+    # Save modified input data to a temporary file
+    temp_input_file = "temp_input.json"
+    with open(temp_input_file, 'w') as f:
+        json.dump(modified_input_data, f)
+    
+    try:
+        # Use the existing apply_variants_to_sequences method
+        results = applier.apply_variants_to_sequences(temp_input_file)
+        
+        # Save results
+        applier.save_results(results, args.output)
+        
+        # Print summary
+        print(f"Applied {results.summary['successful_applications']} variants successfully")
+        print(f"Failed to apply {results.summary['failed_applications']} variants")
+        print(f"Success rate: {results.summary['success_rate']:.2%}")
+        print(f"Results saved to {args.output}")
+        
+    finally:
+        # Clean up temporary file
+        if os.path.exists(temp_input_file):
+            os.remove(temp_input_file)
 
 
 if __name__ == "__main__":

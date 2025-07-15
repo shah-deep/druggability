@@ -16,3 +16,4 @@ processed_large_input.json
 variant_impact_results_large.json
 processed_variants_large.json
 cache/clinvar/clinvar_cache.db
+sequence_variant_results.json

@@ -82,9 +82,9 @@ class EnhancedInputProcessor:
         return {
             'max_sequence_length': 1000000,
             'allowed_file_types': ['.pdb', '.json', '.h5ad', '.csv', '.txt'],
-            'required_fields': ['pdb_file'],  # Core structural requirement
+            'required_fields': [],  # No mandatory fields - all are optional
             'optional_fields': [
-                'dna_sequence', 'rna_sequence', 'protein_sequence',
+                'pdb_file', 'dna_sequence', 'rna_sequence', 'protein_sequence',
                 'missense_variants', 'clinical_data', 'single_cell_data'
             ],
             'validation_strict': True,
@@ -120,7 +120,7 @@ class EnhancedInputProcessor:
         """Initialize validation rules for different input types"""
         return {
             'pdb_file': {
-                'required': True,
+                'required': False,
                 'file_exists': True,
                 'file_extension': '.pdb',
                 'max_size_mb': 100
@@ -200,6 +200,12 @@ class EnhancedInputProcessor:
     def _validate_inputs(self, inputs: Dict[str, Any]) -> InputValidationResult:
         """Validate all inputs according to rules"""
         result = InputValidationResult(is_valid=True)
+        
+        # Check if any input is provided
+        if not inputs or all(value is None for value in inputs.values()):
+            result.is_valid = False
+            result.errors.append("At least one input field must be provided")
+            return result
         
         # Check required fields
         for field in self.config['required_fields']:
@@ -665,28 +671,41 @@ class EnhancedInputProcessor:
     
     def export_processed_input(self, processed_input: ProcessedInput, output_path: str) -> None:
         """Export processed input to file"""
-        output_data = {
-            'pdb_file': processed_input.pdb_file,
-            'pocket_data': processed_input.pocket_data,
-            'dna_sequence': processed_input.dna_sequence,
-            'rna_sequence': processed_input.rna_sequence,
-            'protein_sequence': processed_input.protein_sequence,
-            'missense_variants': processed_input.missense_variants,
-            'clinical_data': processed_input.clinical_data,
-            'structural_constraints': processed_input.structural_constraints,
-            'single_cell_data': processed_input.single_cell_data,
-            'metabolic_data': processed_input.metabolic_data,
-            'input_hash': processed_input.input_hash,
-            'processing_timestamp': processed_input.processing_timestamp,
-            'validation_result': {
-                'is_valid': processed_input.validation_result.is_valid,
-                'errors': processed_input.validation_result.errors,
-                'warnings': processed_input.validation_result.warnings
-            } if processed_input.validation_result else None,
-            'parallel_processing': {
-                'workers_used': self.max_workers,
-                'processing_method': 'parallel'
-            }
+        output_data = {}
+        
+        # Only include fields that have actual values
+        if processed_input.pdb_file is not None:
+            output_data['pdb_file'] = processed_input.pdb_file
+        if processed_input.pocket_data is not None:
+            output_data['pocket_data'] = processed_input.pocket_data
+        if processed_input.dna_sequence is not None:
+            output_data['dna_sequence'] = processed_input.dna_sequence
+        if processed_input.rna_sequence is not None:
+            output_data['rna_sequence'] = processed_input.rna_sequence
+        if processed_input.protein_sequence is not None:
+            output_data['protein_sequence'] = processed_input.protein_sequence
+        if processed_input.missense_variants is not None:
+            output_data['missense_variants'] = processed_input.missense_variants
+        if processed_input.clinical_data is not None:
+            output_data['clinical_data'] = processed_input.clinical_data
+        if processed_input.structural_constraints is not None:
+            output_data['structural_constraints'] = processed_input.structural_constraints
+        if processed_input.single_cell_data is not None:
+            output_data['single_cell_data'] = processed_input.single_cell_data
+        if processed_input.metabolic_data is not None:
+            output_data['metabolic_data'] = processed_input.metabolic_data
+        
+        # Always include metadata
+        output_data['input_hash'] = processed_input.input_hash
+        output_data['processing_timestamp'] = processed_input.processing_timestamp
+        output_data['validation_result'] = {
+            'is_valid': processed_input.validation_result.is_valid,
+            'errors': processed_input.validation_result.errors,
+            'warnings': processed_input.validation_result.warnings
+        } if processed_input.validation_result else None
+        output_data['parallel_processing'] = {
+            'workers_used': self.max_workers,
+            'processing_method': 'parallel'
         }
         
         # Add transcript resolution summary
@@ -738,6 +757,17 @@ def main():
         inputs['rna_sequence'] = args.rna
     if args.protein:
         inputs['protein_sequence'] = args.protein
+    
+    # Check if any inputs were provided
+    if not inputs:
+        print("No inputs provided. Please provide at least one of the following:")
+        print("  --pdb: Path to PDB file")
+        print("  --variants: Path to variants JSON file")
+        print("  --clinical: Path to clinical data JSON file")
+        print("  --dna: DNA sequence")
+        print("  --rna: RNA sequence")
+        print("  --protein: Protein sequence")
+        return
     
     # Initialize processor
     processor = EnhancedInputProcessor()
