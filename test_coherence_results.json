@@ -1,0 +1,10 @@
+{
+  "cross_scale_consistency": 0.5,
+  "tissue_specificity_scores": {},
+  "evidence_weights": {
+    "variant_consistency": 0.4,
+    "tissue_specificity": 0.6
+  },
+  "gtex_validation_results": {},
+  "processing_timestamp": "2025-07-15T11:04:55.617068"
+}

@@ -12,10 +12,11 @@ cache/alphamissense/alphamissense_hg38.db-journal
 protein_42_out/pockets/
 protein_42_out/pockets
 examples/large_variants.json
+examples/protein_42_out/
 processed_large_input.json
 variant_impact_results_large.json
 processed_variants_large.json
 cache/clinvar/clinvar_cache.db
 sequence_variant_results.json
 logs
-# outputs/
+outputs/

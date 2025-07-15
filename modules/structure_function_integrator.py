@@ -38,7 +38,7 @@ try:
 except ImportError as e:
     logger.error(f"Error importing modules: {e}")
     EXISTING_MODULES = False
-    logging.warning("Existing modules not found. Running in standalone mode.")
+    logger.warning("Existing modules not found. Running in standalone mode.")
     sys.exit(1)
 
 
@@ -530,7 +530,7 @@ def main():
     args = parser.parse_args()
     
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
     
     # Load binding sites if provided
     binding_sites = None

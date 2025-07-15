@@ -423,14 +423,18 @@ class CoherenceAnalyzer:
                 pathogenic_scores.append(path_score)
             
             # ClinVar annotation
-            clinvar_ann = variant.get('clinvar_annotation', '').lower()
-            if 'pathogenic' in clinvar_ann:
-                clinvar_pathogenic += 1
+            clinvar_ann = variant.get('clinvar_annotation')
+            if clinvar_ann is not None:
+                clinvar_ann = clinvar_ann.lower()
+                if 'pathogenic' in clinvar_ann:
+                    clinvar_pathogenic += 1
             
             # AlphaMissense annotation
-            alphamissense_ann = variant.get('alphamissense_annotation', '').lower()
-            if 'pathogenic' in alphamissense_ann:
-                alphamissense_pathogenic += 1
+            alphamissense_ann = variant.get('alphamissense_annotation')
+            if alphamissense_ann is not None:
+                alphamissense_ann = alphamissense_ann.lower()
+                if 'pathogenic' in alphamissense_ann:
+                    alphamissense_pathogenic += 1
         
         # Calculate consistency
         score = 0.0
@@ -493,12 +497,16 @@ class CoherenceAnalyzer:
         # Biomarker-specific adjustments
         if biomarkers and diagnosis == 'breast_cancer':
             # Adjust for breast cancer biomarkers
-            her2_status = biomarkers.get('HER2', '').lower()
-            er_status = biomarkers.get('ER', '').lower()
+            her2_status = biomarkers.get('HER2')
+            er_status = biomarkers.get('ER')
             
-            if 'positive' in her2_status or 'positive' in er_status:
-                # Boost score for positive biomarkers
-                tissue_scores = [min(1.0, score * 1.2) for score in tissue_scores]
+            if her2_status is not None and er_status is not None:
+                her2_status = her2_status.lower()
+                er_status = er_status.lower()
+                
+                if 'positive' in her2_status or 'positive' in er_status:
+                    # Boost score for positive biomarkers
+                    tissue_scores = [min(1.0, score * 1.2) for score in tissue_scores]
         
         if not tissue_scores:
             logger.warning("No tissue scores calculated, using default score of 0.5")
@@ -569,7 +577,7 @@ async def main():
     args = parser.parse_args()
     
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
     
     # Warn about default output file
     if args.output == "coherence_results.json":

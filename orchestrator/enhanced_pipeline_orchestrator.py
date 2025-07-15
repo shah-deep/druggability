@@ -124,23 +124,32 @@ class EnhancedPipelineOrchestrator:
         try:
             logger.info("Starting enhanced pipeline execution")
             
-            # Step 1: Process inputs and generate variant impact results
-            processed_input_file, variant_impact_file = self._run_initial_analysis(
-                variants_file, clinical_data_file, protein_sequence_file, pdb_file
-            )
-            result.processed_input_file = processed_input_file
-            result.variant_impact_file = variant_impact_file
+            # Step 1 & 2: Run initial analysis and structural analysis in parallel
+            logger.info("Running initial analysis and structural analysis in parallel")
             
-            # Step 2: Run structural analysis
-            structural_results_file = self._run_structural_analysis(pdb_file)
-            result.structural_results_file = structural_results_file
+            # Prepare arguments for parallel processing of initial steps
+            initial_parallel_args = [
+                (self._run_initial_analysis, variants_file, clinical_data_file, protein_sequence_file, pdb_file),
+                (self._run_structural_analysis, pdb_file)
+            ]
             
-            # Wait for initial analysis to complete before parallel processing
-            logger.info("Initial analysis complete. Starting parallel processing...")
+            # Run initial steps in parallel
+            with mp.Pool(processes=min(self.max_workers, len(initial_parallel_args))) as pool:
+                initial_results = pool.starmap(self._run_single_parallel_process, initial_parallel_args)
+            
+            # Collect results from parallel initial steps
+            for result_item in initial_results:
+                if result_item['type'] == 'initial_analysis':
+                    result.processed_input_file = result_item['processed_input_file']
+                    result.variant_impact_file = result_item['variant_impact_file']
+                elif result_item['type'] == 'structural_analysis':
+                    result.structural_results_file = result_item['file']
+            
+            logger.info("Initial parallel steps complete. Starting secondary parallel processing...")
             
             # Steps 3-5: Run parallel processes
             parallel_results = self._run_parallel_processes(
-                processed_input_file, variant_impact_file, clinical_data_file, protein_sequence_file
+                result.processed_input_file, result.variant_impact_file, clinical_data_file, protein_sequence_file
             )
             
             result.sequence_variant_file = parallel_results['sequence_variant_file']
@@ -244,7 +253,7 @@ class EnhancedPipelineOrchestrator:
         logger.info(f"Variant impact analysis completed: {output_file}")
         return str(output_file)
     
-    def _run_structural_analysis(self, pdb_file: str) -> str:
+    def _run_structural_analysis(self, pdb_file: str) -> Dict[str, str]:
         """Run structural analysis using structure_function_integrator"""
         logger.info("Running structural analysis")
         
@@ -255,7 +264,7 @@ class EnhancedPipelineOrchestrator:
         self.structure_integrator.export_results(result, str(output_file))
         
         logger.info(f"Structural analysis completed: {output_file}")
-        return str(output_file)
+        return {'type': 'structural_analysis', 'file': str(output_file)}
     
     def _run_parallel_processes(self, 
                                processed_input_file: str,
@@ -299,9 +308,31 @@ class EnhancedPipelineOrchestrator:
                                    *args) -> Dict[str, str]:
         """Run a single parallel process"""
         try:
-            return func(*args)
+            if func == self._run_initial_analysis:
+                return self._run_initial_analysis_parallel(*args)
+            else:
+                return func(*args)
         except Exception as e:
             logger.error(f"Error in parallel process {func.__name__}: {e}")
+            return {'type': 'error', 'file': '', 'error': str(e)}
+    
+    def _run_initial_analysis_parallel(self, 
+                                     variants_file: str,
+                                     clinical_data_file: str,
+                                     protein_sequence_file: str,
+                                     pdb_file: str) -> Dict[str, str]:
+        """Run initial analysis in parallel processing context"""
+        try:
+            processed_input_file, variant_impact_file = self._run_initial_analysis(
+                variants_file, clinical_data_file, protein_sequence_file, pdb_file
+            )
+            return {
+                'type': 'initial_analysis',
+                'processed_input_file': processed_input_file,
+                'variant_impact_file': variant_impact_file
+            }
+        except Exception as e:
+            logger.error(f"Error in initial analysis parallel process: {e}")
             return {'type': 'error', 'file': '', 'error': str(e)}
     
     def _run_sequence_variant_analysis(self, processed_input_file: str, protein_sequence_file: str) -> Dict[str, str]:
@@ -403,7 +434,7 @@ class EnhancedPipelineOrchestrator:
         try:
             self.structure_integrator.cleanup()
         except Exception as e:
-            logger.warning(f"Error during cleanup: {e}")
+            logger.error(f"Error during cleanup: {e}")
 
 
 def main():
@@ -437,7 +468,7 @@ def main():
         
         # Print results
         if result.success:
-            logger.info(f"Pipeline completed successfully in {result.execution_time:.2f} seconds")
+            logger.info(f"Pipeline completed successfully in {result.execution_time:.2f} seconds (identifier: {result.timestamp})")
             logger.info(f"Output files:")
             logger.info(f"  Processed input: {result.processed_input_file}")
             logger.info(f"  Variant impact: {result.variant_impact_file}")
@@ -447,7 +478,7 @@ def main():
             logger.info(f"  Pathway dynamics: {result.pathway_dynamics_file}")
             logger.info(f"  Final results: {result.final_results_file}")
         else:
-            logger.error(f"Pipeline failed: {result.errors}")
+            logger.error(f"Pipeline failed: {result.errors} (identifier: {result.timestamp})")
             
     finally:
         orchestrator.cleanup()

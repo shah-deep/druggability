@@ -183,7 +183,7 @@ class FeatureExtractor:
                         residues.append(res_name)
         
         except Exception as e:
-            logger.warning(f"Error getting pocket residues: {e}")
+            logger.error(f"Error getting pocket residues: {e}")
         
         return residues
     
@@ -244,7 +244,7 @@ class FeatureExtractor:
             return len(residues) * 0.1 + np.random.random() * 0.1
         
         except Exception as e:
-            logger.warning(f"Error calculating shape complexity: {e}")
+            logger.error(f"Error calculating shape complexity: {e}")
             return 0.0
     
     def calculate_solvent_accessibility(self, residues: List[str], pocket_center: List[float]) -> float:
@@ -353,7 +353,7 @@ class FeatureExtractor:
                 features = self.extract_pocket_features(pocket_data, pdb_file, pocket_pdb_file)
                 all_features[f"Pocket_{pocket_id}"] = features
             except Exception as e:
-                logger.warning(f"Error extracting features for pocket {pocket_id}: {e}")
+                logger.error(f"Error extracting features for pocket {pocket_id}: {e}")
                 continue
         
         return all_features

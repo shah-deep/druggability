@@ -13,17 +13,19 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-try:
-    import gseapy as gp
-    GSEAPY_AVAILABLE = True
-except ImportError:
-    GSEAPY_AVAILABLE = False
-    logging.warning("GSEApy not available. Install with: pip install gseapy")
-
-# Configure logging
+# Configure logging first
 from .logging_config import setup_logging, get_logger
 setup_logging()
 logger = get_logger(__name__)
+
+try:
+    import gseapy as gp
+    # Use enrichr for ORA
+    from gseapy import enrichr
+    GSEAPY_AVAILABLE = True
+except ImportError:
+    GSEAPY_AVAILABLE = False
+    logger.error("GSEApy not available. Install with: pip install gseapy")
 
 
 class PathwayImpactAnalyzer:
@@ -201,9 +203,6 @@ class PathwayImpactAnalyzer:
                 # Convert gene scores to gene list (take top genes by score)
                 gene_list = [gene for gene, score in sorted(gene_scores.items(), key=lambda x: x[1], reverse=True)]
                 
-                # Use enrichr for ORA
-                from gseapy import enrichr
-                
                 for gene_set in gene_sets:
                     try:
                         enr = enrichr(
@@ -365,14 +364,15 @@ class PathwayImpactAnalyzer:
                         continue
                     
                     # Try to get pathway name from possible columns
-                    pathway_name = (
+                    pathway_name_raw = (
                         pathway.get('Term') or
                         pathway.get('Name') or
                         pathway.get('term_name') or
                         pathway.get('Gene_set') or
                         pathway.get('Name') or  # Add this for Reactome
                         ''
-                    ).lower()
+                    )
+                    pathway_name = pathway_name_raw.lower() if pathway_name_raw else ''
                     
                     for target, min_score in target_pathways.items():
                         # More flexible matching for pathway names

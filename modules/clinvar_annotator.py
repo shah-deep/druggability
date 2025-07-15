@@ -204,7 +204,7 @@ class ClinVarAnnotator:
                     self._cache_annotation(variant, annotation)
                     return annotation
             except Exception as e:
-                logger.warning(f"Error in API query for {variant_id}: {e}")
+                logger.error(f"Error in API query for {variant_id}: {e}")
                 annotation.warnings.append(f"API query failed: {e}")
             
             # Strategy 4: Fallback - no annotation found
@@ -273,11 +273,11 @@ class ClinVarAnnotator:
                     elif result:
                         logger.info(f"Found result but clinical significance is 'Cannot_annotate' for variant ID {variant_id}")
                 except Exception as e:
-                    logger.warning(f"Error processing variant ID {variant_id}: {e}")
+                    logger.error(f"Error processing variant ID {variant_id}: {e}")
                     continue  # Try next variant ID
             
         except Exception as e:
-            logger.warning(f"Error querying ClinVar API: {e}")
+            logger.error(f"Error querying ClinVar API: {e}")
         
         return None
     
@@ -335,7 +335,7 @@ class ClinVarAnnotator:
                 time.sleep(0.1)  # Rate limiting
             
         except Exception as e:
-            logger.warning(f"Error searching ClinVar: {e}")
+            logger.error(f"Error searching ClinVar: {e}")
         
         return []
     
@@ -386,7 +386,7 @@ class ClinVarAnnotator:
                 logger.warning(f"Response text: {fetch_response.text[:500]}")
             
         except Exception as e:
-            logger.warning(f"Error fetching ClinVar details for variant ID {variant_id}: {e}")
+            logger.error(f"Error fetching ClinVar details for variant ID {variant_id}: {e}")
         
         return None
     
@@ -516,13 +516,14 @@ class ClinVarAnnotator:
             
             # Determine star rating based on review status
             if review_status:
-                if 'practice guideline' in review_status.lower():
+                review_status_lower = review_status.lower()
+                if 'practice guideline' in review_status_lower:
                     star_rating = 4
-                elif 'expert panel' in review_status.lower():
+                elif 'expert panel' in review_status_lower:
                     star_rating = 3
-                elif 'multiple submitters' in review_status.lower():
+                elif 'multiple submitters' in review_status_lower:
                     star_rating = 2
-                elif 'single submitter' in review_status.lower():
+                elif 'single submitter' in review_status_lower:
                     star_rating = 1
                 else:
                     star_rating = 0
@@ -539,7 +540,7 @@ class ClinVarAnnotator:
             }
             
         except Exception as e:
-            logger.warning(f"Error parsing ClinVar XML: {e}")
+            logger.error(f"Error parsing ClinVar XML: {e}")
             return None
     
     def _parse_clinvar_summary(self, variant_data: Dict) -> Optional[Dict]:
@@ -610,13 +611,14 @@ class ClinVarAnnotator:
             # Determine star rating based on review status
             star_rating = 1  # Default
             if review_status:
-                if 'practice guideline' in review_status.lower():
+                review_status_lower = review_status.lower()
+                if 'practice guideline' in review_status_lower:
                     star_rating = 4
-                elif 'expert panel' in review_status.lower():
+                elif 'expert panel' in review_status_lower:
                     star_rating = 3
-                elif 'multiple submitters' in review_status.lower():
+                elif 'multiple submitters' in review_status_lower:
                     star_rating = 2
-                elif 'single submitter' in review_status.lower():
+                elif 'single submitter' in review_status_lower:
                     star_rating = 1
                 else:
                     star_rating = 0
@@ -646,7 +648,7 @@ class ClinVarAnnotator:
                 'classification_type': classification_type
             }
         except Exception as e:
-            logger.warning(f"Error parsing ClinVar summary: {e}")
+            logger.error(f"Error parsing ClinVar summary: {e}")
             return None
     
     def _create_cache_key(self, variant: Dict) -> str:

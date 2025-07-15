@@ -202,7 +202,7 @@ class TranscriptResolver:
             return gencode_id
             
         except Exception as e:
-            logger.warning(f"Error getting gencode_id for {gene}: {e}")
+            logger.error(f"Error getting gencode_id for {gene}: {e}")
             return None
     
     def _resolve_with_vep_strategies(self, variant: Dict) -> Optional[str]:
@@ -292,7 +292,7 @@ class TranscriptResolver:
                 return transcript_id
             
         except Exception as e:
-            logger.warning(f"Error querying VEP by gene symbol: {e}")
+            logger.error(f"Error querying VEP by gene symbol: {e}")
         
         return None
 
@@ -317,7 +317,7 @@ class TranscriptResolver:
                                     return True
             
         except Exception as e:
-            logger.warning(f"Error checking protein change for transcript {transcript_id}: {e}")
+            logger.error(f"Error checking protein change for transcript {transcript_id}: {e}")
         
         return False
 
@@ -337,7 +337,7 @@ class TranscriptResolver:
                 return self._extract_transcript_from_vep(data, gene, protein_change)
         
         except Exception as e:
-            logger.warning(f"Error querying VEP with genomic coordinates: {e}")
+            logger.error(f"Error querying VEP with genomic coordinates: {e}")
         
         return None
 
@@ -398,7 +398,7 @@ class TranscriptResolver:
             return None
             
         except Exception as e:
-            logger.warning(f"Error in gene lookup: {e}")
+            logger.error(f"Error in gene lookup: {e}")
             return None
     
     def _extract_transcript_from_vep(self, vep_data: List[Dict], gene: str, protein_change: Optional[str]) -> Optional[str]:
@@ -554,7 +554,7 @@ class TranscriptResolver:
             return transcript_ids
             
         except Exception as e:
-            logger.warning(f"Error fetching VEP transcript IDs for gene {gene}: {e}")
+            logger.error(f"Error fetching VEP transcript IDs for gene {gene}: {e}")
             return []
 
     def get_cache_stats(self) -> Dict:
