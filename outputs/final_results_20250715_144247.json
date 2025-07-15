@@ -1,12 +1,12 @@
 {
   "compound_analysis": {
     "mechanistic_coherence": {
-      "overall_score": 0.7262461796817071,
-      "coherence_category": "MEDIUM_COHERENCE",
+      "overall_score": 0.5186308125,
+      "coherence_category": "LOW_COHERENCE",
       "category_scores": {
         "genotype_pathogenicity": 0.9623912499999999,
         "structure_function": 0.56972,
-        "pathway_enrichment": 0.8304614687268287,
+        "pathway_enrichment": 0.0,
         "clinical_translatability": 0.542412
       },
       "causal_trace": [
@@ -19,11 +19,6 @@
           "step": 2,
           "level": "molecular",
           "description": "BioPython applied variant to reference protein sequence (45749 amino acids), enabling structural impact prediction and sequence-based analysis"
-        },
-        {
-          "step": 3,
-          "level": "pathway",
-          "description": "GSEApy pathway enrichment analysis of 448 pathways identified 413 significant pathways. Top enriched: p53_signaling (1.96), DNA_repair (1.46), Apoptosis (0.97), suggesting dysregulated cellular processes"
         },
         {
           "step": 4,

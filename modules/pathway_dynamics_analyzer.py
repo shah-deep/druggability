@@ -215,10 +215,37 @@ class PathwayImpactAnalyzer:
                         
                         if hasattr(enr, 'results') and enr.results is not None and len(enr.results) > 0:
                             # enr.results is a list of dicts for enrichr
-                            results[gene_set] = {
-                                'enrichment_results': enr.results,
-                                'summary': self._summarize_enrichment(pd.DataFrame(enr.results))
-                            }                            
+                            # Convert to JSON-serializable format
+                            serializable_results = []
+                            for result in enr.results:
+                                if isinstance(result, dict):
+                                    serializable_result = {}
+                                    for key, value in result.items():
+                                        if hasattr(value, 'item'):  # numpy scalar
+                                            serializable_result[key] = value.item()
+                                        elif hasattr(value, 'tolist'):  # numpy array
+                                            serializable_result[key] = value.tolist()
+                                        else:
+                                            serializable_result[key] = value
+                                    serializable_results.append(serializable_result)
+                                else:
+                                    serializable_results.append(result)
+                            
+                            # Only add results if we have actual data
+                            if serializable_results and len(serializable_results) > 0:
+                                # Check if the first result has actual data (not just headers)
+                                first_result = serializable_results[0]
+                                if isinstance(first_result, dict) and len(first_result) > 1:
+                                    results[gene_set] = {
+                                        'enrichment_results': serializable_results,
+                                        'summary': self._summarize_enrichment(pd.DataFrame(serializable_results))
+                                    }
+                                else:
+                                    logger.warning(f"No valid enrichment results for {gene_set}")
+                            else:
+                                logger.warning(f"No enrichment results for {gene_set}")
+                        else:
+                            logger.warning(f"No enrichment results returned for {gene_set}")
                     except Exception as e:
                         logger.warning(f"Failed to analyze {gene_set}: {e}")
                         continue
@@ -246,10 +273,35 @@ class PathwayImpactAnalyzer:
                             verbose=False
                         )
                         if hasattr(prerank_res, 'res2d') and prerank_res.res2d is not None and not prerank_res.res2d.empty:
-                            results[gene_set] = {
-                                'enrichment_results': prerank_res.res2d.reset_index().to_dict('records'),
-                                'summary': self._summarize_enrichment(prerank_res.res2d)
-                            }
+                            # Convert DataFrame to JSON-serializable format
+                            df_records = prerank_res.res2d.reset_index().to_dict('records')
+                            serializable_records = []
+                            for record in df_records:
+                                serializable_record = {}
+                                for key, value in record.items():
+                                    if hasattr(value, 'item'):  # numpy scalar
+                                        serializable_record[key] = value.item()
+                                    elif hasattr(value, 'tolist'):  # numpy array
+                                        serializable_record[key] = value.tolist()
+                                    else:
+                                        serializable_record[key] = value
+                                serializable_records.append(serializable_record)
+                            
+                            # Only add results if we have actual data
+                            if serializable_records and len(serializable_records) > 0:
+                                # Check if the first result has actual data (not just headers)
+                                first_result = serializable_records[0]
+                                if isinstance(first_result, dict) and len(first_result) > 1:
+                                    results[gene_set] = {
+                                        'enrichment_results': serializable_records,
+                                        'summary': self._summarize_enrichment(prerank_res.res2d)
+                                    }
+                                else:
+                                    logger.warning(f"No valid prerank results for {gene_set}")
+                            else:
+                                logger.warning(f"No prerank results for {gene_set}")
+                        else:
+                            logger.warning(f"No prerank results returned for {gene_set}")
                     except Exception as e:
                         logger.warning(f"Failed to analyze {gene_set} with prerank: {e}")
                         continue
@@ -274,7 +326,28 @@ class PathwayImpactAnalyzer:
             Dict[str, Any]: Summary statistics
         """
         if enrichment_df is None or enrichment_df.empty:
-            return {}
+            logger.warning("Empty enrichment DataFrame provided")
+            return {
+                'total_pathways': 0,
+                'significant_pathways': 0,
+                'top_pathways': [],
+                'max_enrichment_score': 0,
+                'min_fdr': 1.0
+            }
+        
+        # Check if DataFrame only contains headers (single row with column names)
+        if len(enrichment_df) == 1:
+            first_row = enrichment_df.iloc[0]
+            # If all values in the first row are the same as column names, it's likely headers
+            if all(str(first_row[col]) == str(col) for col in enrichment_df.columns):
+                logger.warning("Enrichment DataFrame contains only headers, no actual data")
+                return {
+                    'total_pathways': 0,
+                    'significant_pathways': 0,
+                    'top_pathways': [],
+                    'max_enrichment_score': 0,
+                    'min_fdr': 1.0
+                }
         
         # Handle different column names for FDR/p-value
         fdr_col = None
@@ -292,7 +365,7 @@ class PathwayImpactAnalyzer:
             return {
                 'total_pathways': len(enrichment_df),
                 'significant_pathways': 0,
-                'top_pathways': enrichment_df.head(10).to_dict('records'),
+                'top_pathways': enrichment_df.head(10).to_dict('records') if not enrichment_df.empty else [],
                 'max_enrichment_score': 0,
                 'min_fdr': 1.0
             }
@@ -310,7 +383,7 @@ class PathwayImpactAnalyzer:
         summary = {
             'total_pathways': len(enrichment_df),
             'significant_pathways': len(significant),
-            'top_pathways': significant.head(10).to_dict('records') if not significant.empty else [], # type: ignore
+            'top_pathways': significant.head(10).to_dict('records') if not significant.empty else [],
             'max_enrichment_score': enrichment_df[es_col].max() if es_col and es_col in enrichment_df.columns else 0,
             'min_fdr': enrichment_df[fdr_col].min() if not enrichment_df.empty else 1.0
         }
@@ -474,13 +547,83 @@ class PathwayImpactAnalyzer:
             Dict[str, Any]: Complete analysis report
         """
         validation_results = self.validate_target_scores()
-        # Create the simplified output format
+        
+        # Get gene list and count
+        gene_list = self.gene_list if hasattr(self, 'gene_list') else []
+        gene_count = len(gene_list)
+        
+        # Create pathway enrichment scores
         pathway_enrichment = {}
         for pathway, score in self.pathway_scores.items():
             pathway_enrichment[pathway] = score
         
+        # Convert enrichment results to JSON-serializable format
+        serializable_enrichment_results = {}
+        for gene_set, results in self.enrichment_results.items():
+            # Convert enrichment results to ensure they're serializable
+            enrichment_results = results.get('enrichment_results', [])
+            if isinstance(enrichment_results, list):
+                # Convert any pandas Series or numpy types to native Python types
+                serializable_results = []
+                for result in enrichment_results:
+                    if isinstance(result, dict):
+                        serializable_result = {}
+                        for key, value in result.items():
+                            if hasattr(value, 'item'):  # numpy scalar
+                                serializable_result[key] = value.item()
+                            elif hasattr(value, 'tolist'):  # numpy array
+                                serializable_result[key] = value.tolist()
+                            else:
+                                serializable_result[key] = value
+                        serializable_results.append(serializable_result)
+                    else:
+                        serializable_results.append(result)
+            else:
+                serializable_results = enrichment_results
+            
+            # Convert summary to ensure it's serializable
+            summary = results.get('summary', {})
+            if isinstance(summary, dict):
+                serializable_summary = {}
+                for key, value in summary.items():
+                    if key == 'top_pathways' and isinstance(value, list):
+                        # Convert top_pathways to serializable format
+                        serializable_top_pathways = []
+                        for pathway in value:
+                            if isinstance(pathway, dict):
+                                serializable_pathway = {}
+                                for pkey, pvalue in pathway.items():
+                                    if hasattr(pvalue, 'item'):  # numpy scalar
+                                        serializable_pathway[pkey] = pvalue.item()
+                                    elif hasattr(pvalue, 'tolist'):  # numpy array
+                                        serializable_pathway[pkey] = pvalue.tolist()
+                                    else:
+                                        serializable_pathway[pkey] = pvalue
+                                serializable_top_pathways.append(serializable_pathway)
+                            else:
+                                serializable_top_pathways.append(pathway)
+                        serializable_summary[key] = serializable_top_pathways
+                    elif hasattr(value, 'item'):  # numpy scalar
+                        serializable_summary[key] = value.item()
+                    elif hasattr(value, 'tolist'):  # numpy array
+                        serializable_summary[key] = value.tolist()
+                    else:
+                        serializable_summary[key] = value
+            else:
+                serializable_summary = summary
+            
+            serializable_enrichment_results[gene_set] = {
+                'enrichment_results': serializable_results,
+                'summary': serializable_summary
+            }
+        
         report = {
+            'gene_list': gene_list,
+            'gene_count': gene_count,
             'pathway_enrichment': pathway_enrichment,
+            'target_pathway_scores': self.pathway_scores,
+            'validation_results': validation_results,
+            'enrichment_results': serializable_enrichment_results,
             'summary': {
                 'total_pathways_analyzed': sum(len(r.get('enrichment_results', [])) 
                                              for r in self.enrichment_results.values()),

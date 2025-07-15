@@ -153,8 +153,29 @@ class EnhancedPipelineOrchestrator:
                 structural_future = executor.submit(self._run_structural_analysis, pdb_file)
                 
                 # Wait for both to complete
-                initial_result = initial_future.result()
-                structural_result = structural_future.result()
+                try:
+                    initial_result = initial_future.result()
+                    structural_result = structural_future.result()
+                except Exception as e:
+                    logger.error(f"Error in parallel execution: {e}")
+                    result.errors.append(f"Parallel execution failed: {e}")
+                    result.execution_time = time.time() - start_time
+                    return result
+            
+            # Check for errors in parallel results
+            if initial_result.get('type') == 'error':
+                error_msg = initial_result.get('error', 'Unknown error in initial analysis')
+                logger.error(f"Initial analysis failed: {error_msg}")
+                result.errors.append(f"Initial analysis failed: {error_msg}")
+                result.execution_time = time.time() - start_time
+                return result
+                
+            if structural_result.get('type') == 'error':
+                error_msg = structural_result.get('error', 'Unknown error in structural analysis')
+                logger.error(f"Structural analysis failed: {error_msg}")
+                result.errors.append(f"Structural analysis failed: {error_msg}")
+                result.execution_time = time.time() - start_time
+                return result
             
             # Collect results from parallel initial steps
             if initial_result['type'] == 'initial_analysis':
@@ -169,23 +190,35 @@ class EnhancedPipelineOrchestrator:
             logger.info("Initial parallel steps complete. Starting secondary parallel processing...")
             
             # Steps 3-5: Run parallel processes
-            parallel_results = self._run_parallel_processes(
-                result.processed_input_file, result.variant_impact_file, clinical_data_file, protein_sequence_file
-            )
-            
-            result.sequence_variant_file = parallel_results['sequence_variant_file']
-            result.coherence_results_file = parallel_results['coherence_results_file']
-            result.pathway_dynamics_file = parallel_results['pathway_dynamics_file']
+            try:
+                parallel_results = self._run_parallel_processes(
+                    result.processed_input_file, result.variant_impact_file, clinical_data_file, protein_sequence_file
+                )
+                
+                result.sequence_variant_file = parallel_results['sequence_variant_file']
+                result.coherence_results_file = parallel_results['coherence_results_file']
+                result.pathway_dynamics_file = parallel_results['pathway_dynamics_file']
+            except Exception as e:
+                logger.error(f"Error in parallel processes: {e}")
+                result.errors.append(f"Parallel processes failed: {e}")
+                result.execution_time = time.time() - start_time
+                return result
             
             # Step 6: Run intelligent coherence scoring
-            final_results_file = self._run_intelligent_coherence_scoring(
-                result.structural_results_file,
-                result.variant_impact_file,
-                result.sequence_variant_file,
-                result.coherence_results_file,
-                result.pathway_dynamics_file
-            )
-            result.final_results_file = final_results_file
+            try:
+                final_results_file = self._run_intelligent_coherence_scoring(
+                    result.structural_results_file,
+                    result.variant_impact_file,
+                    result.sequence_variant_file,
+                    result.coherence_results_file,
+                    result.pathway_dynamics_file
+                )
+                result.final_results_file = final_results_file
+            except Exception as e:
+                logger.error(f"Error in intelligent coherence scoring: {e}")
+                result.errors.append(f"Intelligent coherence scoring failed: {e}")
+                result.execution_time = time.time() - start_time
+                return result
             
             result.success = True
             result.execution_time = time.time() - start_time
@@ -256,16 +289,37 @@ class EnhancedPipelineOrchestrator:
     
     def _run_structural_analysis(self, pdb_file: str) -> Dict[str, str]:
         """Run structural analysis using structure_function_integrator"""
-        logger.info("Running structural analysis")
+        logger.info(f"Running structural analysis for PDB file: {pdb_file}")
         
-        output_file = self.output_dir / f"structural_results_{self.timestamp}.json"
+        # Validate PDB file exists and is readable
+        if not os.path.exists(pdb_file):
+            error_msg = f"PDB file not found: {pdb_file}"
+            logger.error(error_msg)
+            return {'type': 'error', 'file': '', 'error': error_msg}
         
-        # Run structural analysis
-        result = self.structure_integrator.analyze_structure(pdb_file)
-        self.structure_integrator.export_results(result, str(output_file))
-        
-        logger.info(f"Structural analysis completed: {output_file}")
-        return {'type': 'structural_analysis', 'file': str(output_file)}
+        try:
+            # Check file size
+            file_size = os.path.getsize(pdb_file)
+            logger.info(f"PDB file size: {file_size} bytes")
+            
+            if file_size == 0:
+                error_msg = f"PDB file is empty: {pdb_file}"
+                logger.error(error_msg)
+                return {'type': 'error', 'file': '', 'error': error_msg}
+            
+            output_file = self.output_dir / f"structural_results_{self.timestamp}.json"
+            
+            # Run structural analysis
+            result = self.structure_integrator.analyze_structure(pdb_file)
+            self.structure_integrator.export_results(result, str(output_file))
+            
+            logger.info(f"Structural analysis completed: {output_file}")
+            return {'type': 'structural_analysis', 'file': str(output_file)}
+            
+        except Exception as e:
+            error_msg = f"Structural analysis failed: {e}"
+            logger.error(error_msg)
+            return {'type': 'error', 'file': '', 'error': error_msg}
     
     def _run_parallel_processes(self, 
                                processed_input_file: str,
@@ -287,19 +341,33 @@ class EnhancedPipelineOrchestrator:
             coherence_future = executor.submit(self._run_coherence_analysis, variant_impact_file, clinical_data_file)
             pathway_future = executor.submit(self._run_pathway_dynamics_analysis, variant_impact_file)
             
-            # Wait for all to complete
-            sequence_result = sequence_future.result()
-            coherence_result = coherence_future.result()
-            pathway_result = pathway_future.result()
+            # Wait for all to complete and collect results
+            results = {}
+            futures = {
+                'sequence_variant': sequence_future,
+                'coherence': coherence_future,
+                'pathway_dynamics': pathway_future
+            }
+            
+            for name, future in futures.items():
+                try:
+                    result = future.result()
+                    if result.get('type') == 'error':
+                        logger.error(f"{name} failed: {result.get('error', 'Unknown error')}")
+                        raise Exception(f"{name} failed: {result.get('error', 'Unknown error')}")
+                    results[name] = result
+                except Exception as e:
+                    logger.error(f"Error in {name} process: {e}")
+                    raise Exception(f"{name} process failed: {e}")
         
         # Collect results
         output_files = {}
-        if sequence_result['type'] == 'sequence_variant':
-            output_files['sequence_variant_file'] = sequence_result['file']
-        if coherence_result['type'] == 'coherence':
-            output_files['coherence_results_file'] = coherence_result['file']
-        if pathway_result['type'] == 'pathway_dynamics':
-            output_files['pathway_dynamics_file'] = pathway_result['file']
+        if results.get('sequence_variant', {}).get('type') == 'sequence_variant':
+            output_files['sequence_variant_file'] = results['sequence_variant']['file']
+        if results.get('coherence', {}).get('type') == 'coherence':
+            output_files['coherence_results_file'] = results['coherence']['file']
+        if results.get('pathway_dynamics', {}).get('type') == 'pathway_dynamics':
+            output_files['pathway_dynamics_file'] = results['pathway_dynamics']['file']
         
         logger.info("Parallel processes completed")
         return output_files

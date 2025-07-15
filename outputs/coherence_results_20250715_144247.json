@@ -1,14 +1,14 @@
 {
   "cross_scale_consistency": 0.611855,
   "tissue_specificity_scores": {
+    "TP53": {
+      "Breast_Mammary_Tissue": 1.0
+    },
     "CFTR": {
       "Breast_Mammary_Tissue": 0.009535
     },
     "BRCA1": {
       "Breast_Mammary_Tissue": 0.1316
-    },
-    "TP53": {
-      "Breast_Mammary_Tissue": 1.0
     }
   },
   "evidence_weights": {
@@ -16,6 +16,15 @@
     "tissue_specificity": 0.6
   },
   "gtex_validation_results": {
+    "TP53": {
+      "Breast_Mammary_Tissue": {
+        "median_tpm": 24.56,
+        "samples": 459,
+        "tissue_found": true,
+        "tissue_name": "Breast_Mammary_Tissue",
+        "gencode_id_used": "ENSG00000141510.16"
+      }
+    },
     "CFTR": {
       "Breast_Mammary_Tissue": {
         "median_tpm": 0.09535,
@@ -33,16 +42,7 @@
         "tissue_name": "Breast_Mammary_Tissue",
         "gencode_id_used": "ENSG00000012048.20"
       }
-    },
-    "TP53": {
-      "Breast_Mammary_Tissue": {
-        "median_tpm": 24.56,
-        "samples": 459,
-        "tissue_found": true,
-        "tissue_name": "Breast_Mammary_Tissue",
-        "gencode_id_used": "ENSG00000141510.16"
-      }
     }
   },
-  "processing_timestamp": "2025-07-15T14:11:25.286077"
+  "processing_timestamp": "2025-07-15T14:47:38.101095"
 }

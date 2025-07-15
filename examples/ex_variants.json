@@ -8,14 +8,6 @@
     "protein_change": "p.Arg175His"
   },
   {
-    "id": "var_002", 
-    "position": 32906,
-    "reference": "T",
-    "alternate": "C",
-    "gene": "BRCA1",
-    "protein_change": "p.Cys61Gly"
-  },
-  {
     "id": "var_CFTR_DF508",
     "position": 11755,
     "reference": "CTT",
@@ -30,5 +22,13 @@
     "alternate": "",
     "gene": "BRCA1",
     "protein_change": "p.Glu23fs"
+  },
+  {
+    "id": "var_004", 
+    "position": 32906,
+    "reference": "T",
+    "alternate": "C",
+    "gene": "BRCA1",
+    "protein_change": "p.Cys61Gly"
   }
 ]

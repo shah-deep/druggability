@@ -130,19 +130,30 @@ class StructureFunctionIntegrator:
     def _validate_pdb_structure(self, pdb_file: str) -> bool:
         """Validate PDB structure file"""
         if not os.path.exists(pdb_file):
+            self.logger.error(f"PDB file not found: {pdb_file}")
             raise FileNotFoundError(f"PDB file not found: {pdb_file}")
         
         try:
             with open(pdb_file, 'r') as f:
                 content = f.read()
                 if not content.strip():
+                    self.logger.error(f"PDB file is empty: {pdb_file}")
                     raise ValueError("Empty PDB file")
                 
                 # Check for essential PDB records
                 if 'ATOM' not in content and 'HETATM' not in content:
+                    self.logger.error(f"No ATOM or HETATM records found in PDB file: {pdb_file}")
                     raise ValueError("No ATOM or HETATM records found in PDB file")
                 
-            return True
+                # Check file size
+                file_size = os.path.getsize(pdb_file)
+                if file_size < 100:  # Very small files are likely empty or corrupted
+                    self.logger.error(f"PDB file is too small ({file_size} bytes): {pdb_file}")
+                    raise ValueError(f"PDB file is too small ({file_size} bytes)")
+                
+                self.logger.info(f"PDB file validation passed: {pdb_file} ({file_size} bytes)")
+                return True
+                
         except Exception as e:
             self.logger.error(f"PDB validation failed: {e}")
             return False

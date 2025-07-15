@@ -91,7 +91,7 @@ def test_variant_impact_analyzer_expected_results():
         expected = {
             ("TP53", "p.Arg175His"): {"score_range": (0.85, 1.0), "clinvar": ["Pathogenic", "Likely_Pathogenic"]},
             ("CFTR", "p.Phe508del"): {"score_range": (0.8, 0.95), "clinvar": ["Pathogenic"]},  # Updated range
-            ("BRCA1", "p.Glu23fs"): {"score_range": (0.9, 1.0), "clinvar": ["Pathogenic"]},
+            ("BRCA1", "p.Glu23fs"): {"score_range": (0.9, 1.0), "clinvar": ["Pathogenic"]},  # Frameshift variant - AlphaMissense may not have data
         }
 
         found = 0
@@ -108,7 +108,6 @@ def test_variant_impact_analyzer_expected_results():
 
         # Check that we found exactly the expected 3 variants
         assert found == 3, f"Expected exactly 3 variants, found {found}"
-
     finally:
         # Clean up temporary file
         if os.path.exists(test_input_file):

@@ -1,0 +1,36 @@
+{
+  "gene_list": [
+    "TP53",
+    "BRCA1",
+    "CFTR"
+  ],
+  "gene_count": 3,
+  "pathway_enrichment": {},
+  "target_pathway_scores": {},
+  "validation_results": {
+    "p53_signaling": {
+      "expected_min": 0.7,
+      "actual_score": 0,
+      "passed": false,
+      "status": "FAIL"
+    },
+    "DNA_repair": {
+      "expected_min": 0.65,
+      "actual_score": 0,
+      "passed": false,
+      "status": "FAIL"
+    },
+    "Apoptosis": {
+      "expected_min": 0.6,
+      "actual_score": 0,
+      "passed": false,
+      "status": "FAIL"
+    }
+  },
+  "enrichment_results": {},
+  "summary": {
+    "total_pathways_analyzed": 0,
+    "significant_pathways": 0,
+    "target_pathways_passed": 0
+  }
+}
