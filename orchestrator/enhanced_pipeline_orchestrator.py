@@ -89,7 +89,13 @@ class EnhancedPipelineOrchestrator:
         self.coherence_analyzer = CoherenceAnalyzer()
         self.intelligent_scorer = IntelligentCoherenceScorer()
         
-        logger.info(f"EnhancedPipelineOrchestrator initialized with {self.max_workers} workers")
+        
+        # Mark pipeline start in all log files
+        logger.info(f"=== Enhanced Pipeline Orchestrator START === {self.timestamp}")
+        logger.warning(f"=== Enhanced Pipeline Orchestrator START === {self.timestamp}")
+        logger.error(f"=== Enhanced Pipeline Orchestrator START === {self.timestamp}")
+        logger.info(f"Orchestrator initialized with {self.max_workers} workers")
+
     
     def run_pipeline(self, 
                     variants_file: str,
