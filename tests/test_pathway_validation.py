@@ -20,7 +20,7 @@ class TestPathwayValidation:
     @pytest.fixture
     def analyzer(self):
         """Create analyzer instance for testing"""
-        return PathwayImpactAnalyzer(input_file="variant_impact_results_large.json")
+        return PathwayImpactAnalyzer(input_file="variant_impact_results.json")
     
     @pytest.fixture
     def results(self, analyzer):
@@ -173,14 +173,14 @@ class TestPathwayValidation:
 
 def test_analyzer_initialization():
     """Test that analyzer can be initialized"""
-    analyzer = PathwayImpactAnalyzer(input_file="variant_impact_results_large.json")
+    analyzer = PathwayImpactAnalyzer(input_file="variant_impact_results.json")
     assert analyzer is not None, "Analyzer should be created successfully"
     print("✅ Analyzer initialization successful")
 
 
 def test_data_loading():
     """Test that input data can be loaded"""
-    analyzer = PathwayImpactAnalyzer(input_file="variant_impact_results_large.json")
+    analyzer = PathwayImpactAnalyzer(input_file="variant_impact_results.json")
     success = analyzer.load_input_data()
     assert success, "Data loading should succeed"
     print("✅ Data loading successful")

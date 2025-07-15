@@ -80,7 +80,14 @@ class AlphaMissenseCache:
         """
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_db_path = self.cache_dir / "alphamissense" / "alphamissense_cache.db"
+        
+        # Check if the cache_dir already contains 'alphamissense' to avoid duplication
+        if 'alphamissense' in str(self.cache_dir):
+            self.cache_db_path = self.cache_dir / "alphamissense_cache.db"
+        else:
+            self.cache_db_path = self.cache_dir / "alphamissense" / "alphamissense_cache.db"
+            self.cache_db_path.parent.mkdir(parents=True, exist_ok=True)
+        
         self._init_cache_db()
 
     def _init_cache_db(self):
@@ -279,11 +286,17 @@ class VariantImpactAnalyzer:
         self.max_workers = max_workers or mp.cpu_count()
         self.cache = AlphaMissenseCache(cache_dir)
         
-        # Validate database exists
+        # Check if database exists, if not, use cache-only mode
         if not self.alphamissense_db_path.exists():
-            raise FileNotFoundError(f"AlphaMissense database not found: {self.alphamissense_db_path}")
+            logger.warning(f"AlphaMissense database not found: {self.alphamissense_db_path}")
+            logger.warning("Falling back to cache-only mode. Only previously cached variants will be processed.")
+            self.cache_only_mode = True
+        else:
+            self.cache_only_mode = False
         
         logger.info(f"Variant Impact Analyzer initialized with {self.max_workers} workers")
+        if self.cache_only_mode:
+            logger.info("Running in cache-only mode")
     
     def analyze_variants(self, input_file: str) -> Dict[str, Any]:
         """
@@ -462,8 +475,13 @@ class SingleVariantAnalyzer:
         self.alphamissense_db_path = Path(alphamissense_db_path)
         self.cache_db_path = Path(cache_db_path)
         self.clinvar_annotator = ClinVarAnnotator()
-        self.cache = AlphaMissenseCache(str(self.cache_db_path.parent))
+        # Use the cache directory (parent of the cache db file) to avoid path duplication
+        cache_dir = self.cache_db_path.parent
+        self.cache = AlphaMissenseCache(str(cache_dir))
         self.cache.cache_db_path = self.cache_db_path  # Override cache path for this process
+        
+        # Check if we're in cache-only mode
+        self.cache_only_mode = not self.alphamissense_db_path.exists()
     
     async def analyze_variant_async(self, variant: Dict) -> VariantImpactResult:
         """
@@ -549,6 +567,19 @@ class SingleVariantAnalyzer:
         if cached_result:
             return cached_result
         
+        # If in cache-only mode and no cached result, return default
+        if self.cache_only_mode:
+            logger.warning(f"No cached result found for {variant_id} in cache-only mode")
+            return AlphaMissenseResult(
+                variant_id=variant_id,
+                gene=gene,
+                protein_change=protein_change,
+                average_pathogenicity_score=0.5,
+                max_occurring_class=None,
+                confidence="none",
+                warnings=[f"No cached result available for {variant_id} in cache-only mode"]
+            )
+        
         # Run database query in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
@@ -558,7 +589,6 @@ class SingleVariantAnalyzer:
         # Cache the result (but not if confidence is "none")
         if variant_data and result.confidence != "none":
             self.cache.cache_result(variant_data, result)
-
         
         return result
     
@@ -853,6 +883,10 @@ def main():
     # Count genes
     genes = set(v['gene'] for v in variants)
     logger.info(f"Unique genes: {len(genes)}")
+    
+    # Show cache-only mode info if applicable
+    if analyzer.cache_only_mode:
+        logger.info("Analysis completed in cache-only mode (no AlphaMissense database available)")
 
 
 if __name__ == "__main__":

@@ -46,7 +46,12 @@
         "ENST00000574684",
         "ENST00000505014",
         "ENST00000571370"
-      ]
+      ],
+      "pathogenicity_score": 0.97995,
+      "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "low",
+      "clinvar_variation_id": "VCV000376649",
+      "clinvar_annotation": "Pathogenic"
     },
     {
       "id": "var_002",
@@ -101,7 +106,12 @@
         "ENST00000700083",
         "ENST00000700185",
         "ENST00000700186"
-      ]
+      ],
+      "pathogenicity_score": 0.6145,
+      "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "low",
+      "clinvar_variation_id": "VCV000462208",
+      "clinvar_annotation": "Likely_Pathogenic"
     },
     {
       "id": "var_CFTR_DF508",
@@ -153,7 +163,12 @@
         "ENST00000608965",
         "ENST00000610149",
         "ENST00000621535"
-      ]
+      ],
+      "pathogenicity_score": 0.916975,
+      "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "low",
+      "clinvar_variation_id": "VCV003894528",
+      "clinvar_annotation": "Pathogenic"
     },
     {
       "id": "var_BRCA1_185delAG",
@@ -208,7 +223,12 @@
         "ENST00000700083",
         "ENST00000700185",
         "ENST00000700186"
-      ]
+      ],
+      "pathogenicity_score": 0.93814,
+      "alphamissense_annotation": "Likely_Pathogenic",
+      "alphamissense_confidence": "low",
+      "clinvar_variation_id": "VCV001755509",
+      "clinvar_annotation": "Pathogenic"
     }
   ],
   "clinical_data": {
@@ -227,8 +247,8 @@
       "radiation"
     ]
   },
-  "input_hash": "68d994e098be11689db3dad74870cc36",
-  "processing_timestamp": "2025-07-15T01:52:02.593048",
+  "input_hash": "daf3a961aeddbbc29f600e5b2a23d7f8",
+  "processing_timestamp": "2025-07-15T14:08:39.608368",
   "validation_result": {
     "is_valid": true,
     "errors": [],
@@ -238,6 +258,8 @@
       "Model 'genegenie' (genotype_models) cannot run: missing dna_sequence",
       "Model 'scgpt' (simulation_models) cannot run: missing single_cell_data",
       "Model 'scfoundation' (simulation_models) cannot run: missing single_cell_data",
+      "Model 'proteinmpnn' (structure_models) cannot run: missing protein_sequence",
+      "Model 'esm3' (structure_models) cannot run: missing protein_sequence",
       "Model 'atom1' (structure_models) cannot run: missing rna_sequence",
       "Model 'cobrapy' (metabolic_models) cannot run: missing dna_sequence"
     ]

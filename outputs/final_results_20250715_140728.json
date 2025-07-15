@@ -18,7 +18,7 @@
         {
           "step": 2,
           "level": "molecular",
-          "description": "BioPython applied variant to reference protein sequence (9033 amino acids), enabling structural impact prediction and sequence-based analysis"
+          "description": "BioPython applied variant to reference protein sequence (45749 amino acids), enabling structural impact prediction and sequence-based analysis"
         },
         {
           "step": 3,
