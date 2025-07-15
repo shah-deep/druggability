@@ -39,6 +39,11 @@ from .logging_config import setup_logging, get_logger
 setup_logging()
 logger = get_logger(__name__)
 
+from dotenv import load_dotenv # type: ignore
+
+# Load environment variables from a .env file if present
+load_dotenv()
+
 
 @dataclass
 class ClinVarAnnotation:
@@ -74,7 +79,7 @@ class ClinVarAnnotator:
         
         # API configuration
         self.api_base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-        self.api_key = os.getenv('NCBI_API_KEY', '34bce239811b7a833431a406c588de697008')
+        self.api_key = os.getenv('NCBI_API_KEY', '')
         
         # Initialize components
         self._init_cache_db()

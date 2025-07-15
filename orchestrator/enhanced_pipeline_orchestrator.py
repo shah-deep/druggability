@@ -7,13 +7,17 @@ and pathway analysis. Coordinates multiple modules to process variants, clinical
 protein sequences, and PDB structures.
 
 Example usage:
-    orchestrator = EnhancedPipelineOrchestrator()
-    results = orchestrator.run_pipeline(
-        variants_file="ex_variants.json",
-        clinical_data_file="ex_clinical_data.json", 
-        protein_sequence_file="ex_protein_seq.txt",
-        pdb_file="protein_42.pdb"
-    )
+
+To run the enhanced pipeline orchestrator, use the following command in WSL with your virtual environment activated:
+
+    wsl bash -c "source .venv/bin/activate && python3 -m modules.enhanced_pipeline_orchestrator \
+        --variants examples/ex_variants.json \
+        --clinical examples/ex_clinical_data.json \
+        --protein-seq examples/ex_protein_seq.txt \
+        --pdb examples/protein_42.pdb \
+        --output-dir outputs \
+        --max-workers 8"
+
 """
 
 import os
@@ -28,25 +32,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import tempfile
 import shutil
-
-# Import required modules
-try:
-    from .enhanced_input_processor import EnhancedInputProcessor
-    from .variant_impact_analyzer import VariantImpactAnalyzer
-    from .structure_function_integrator import StructureFunctionIntegrator
-    from .sequence_variant_applier import SequenceVariantApplier
-    from .coherence_analyzer import CoherenceAnalyzer
-    from .pathway_dynamics_analyzer import PathwayImpactAnalyzer
-except ImportError:
-    from enhanced_input_processor import EnhancedInputProcessor
-    from variant_impact_analyzer import VariantImpactAnalyzer
-    from structure_function_integrator import StructureFunctionIntegrator
-    from sequence_variant_applier import SequenceVariantApplier
-    from coherence_analyzer import CoherenceAnalyzer
-    from pathway_dynamics_analyzer import PathwayImpactAnalyzer
+from modules.enhanced_input_processor import EnhancedInputProcessor
+from modules.variant_impact_analyzer import VariantImpactAnalyzer
+from modules.structure_function_integrator import StructureFunctionIntegrator
+from modules.sequence_variant_applier import SequenceVariantApplier
+from modules.coherence_analyzer import CoherenceAnalyzer
+from modules.pathway_dynamics_analyzer import PathwayImpactAnalyzer
 
 # Configure logging
-from .logging_config import setup_logging, get_logger
+from modules.logging_config import setup_logging, get_logger
 setup_logging()
 logger = get_logger(__name__)
 
