@@ -132,7 +132,12 @@ class VariantImpactAnalyzer:
                     
                     # Add ClinVar results to variant
                     variant['clinvar_variation_id'] = result.clinvar.variation_id
-                    variant['clinvar_annotation'] = result.clinvar.clinical_significance.title() if result.clinvar.clinical_significance else None
+                    # Default clinvar_annotation to "Uncertain_Significance" if not present or None/empty
+                    clinvar_ann = result.clinvar.clinical_significance
+                    if clinvar_ann is None or clinvar_ann == "":
+                        variant['clinvar_annotation'] = "Uncertain_Significance"
+                    else:
+                        variant['clinvar_annotation'] = clinvar_ann.title()
 
             # Add analysis metadata
             input_data['variant_impact_analysis'] = {  # type: ignore
@@ -238,6 +243,7 @@ class VariantImpactAnalyzer:
                     variant_id=variant_id,
                     gene=variant.get('gene', ''),
                     protein_change=variant.get('protein_change', ''),
+                    clinical_significance="Uncertain_Significance",
                     warnings=[f"Processing error: {str(e)}"]
                 )
             )
@@ -302,9 +308,13 @@ class SingleVariantAnalyzer:
                 variant_id=variant_id,
                 gene=gene,
                 protein_change=protein_change,
+                clinical_significance="Uncertain_Significance",
                 warnings=[f"ClinVar error: {str(clinvar_result)}"]
             )
-        
+        else:
+            # If clinical_significance is None or empty, set to "Uncertain_Significance"
+            if getattr(clinvar_result, "clinical_significance", None) in (None, ""):
+                object.__setattr__(clinvar_result, "clinical_significance", "Uncertain_Significance")
         # Ensure we have proper types
         assert isinstance(alphamissense_result, AlphaMissenseResult)
         assert isinstance(clinvar_result, ClinVarAnnotation)
@@ -576,6 +586,9 @@ class SingleVariantAnalyzer:
         result = await loop.run_in_executor(
             None, self.clinvar_annotator.annotate_variant, variant
         )
+        # Default clinical_significance to "Uncertain_Significance" if not present or None/empty
+        if getattr(result, "clinical_significance", None) in (None, ""):
+            result.clinical_significance = "Uncertain_Significance"
         return result
 
 
