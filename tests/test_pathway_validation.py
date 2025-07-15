@@ -11,7 +11,7 @@ from pathlib import Path
 # Add modules to path
 sys.path.append(str(Path(__file__).parent / "modules"))
 
-from modules.pathway_impact_analyzer import PathwayImpactAnalyzer
+from modules.pathway_dynamics_analyzer import PathwayImpactAnalyzer
 
 
 class TestPathwayValidation:
