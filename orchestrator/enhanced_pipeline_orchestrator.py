@@ -234,7 +234,7 @@ class EnhancedPipelineOrchestrator:
         """Run structural analysis using structure_function_integrator"""
         logger.info("Running structural analysis")
         
-        output_file = self.output_dir / "structural_results.json"
+        output_file = self.output_dir / f"structural_results_{self.timestamp}.json"
         
         # Run structural analysis
         result = self.structure_integrator.analyze_structure(pdb_file)
