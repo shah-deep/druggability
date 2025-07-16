@@ -21,3 +21,4 @@ sequence_variant_results.json
 logs
 outputs/
 cache
+.DS_Store

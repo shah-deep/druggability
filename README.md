@@ -49,14 +49,15 @@ druggability/
 
 ### Prerequisites
 
-- **WSL (Windows Subsystem for Linux)** - Required for running the pipeline
 - **Conda/Miniconda** - For environment management
 - **Python 3.10** - Required Python version
+- **Git** - For cloning the repository
 
 ### Installation Steps
 
 1. **Clone the repository and navigate to the project directory:**
    ```bash
+   git clone <repository-url>
    cd druggability
    ```
 
@@ -66,38 +67,41 @@ druggability/
    conda activate mech-coherence
    ```
 
-3. **Install additional dependencies:**
+3. **Verify the installation:**
    ```bash
-   pip install python-dotenv
+   python -c "import numpy, pandas, torch, biopython; print('All core dependencies installed successfully')"
    ```
 
-4. **Set up environment variables:**
+4. **Install fpocket (required for structural analysis):**
+   ```bash
+   conda install -c conda-forge fpocket -y
+   ```
+
+5. **Set up environment variables (optional but recommended):**
    Create a `.env` file in the project root:
    ```bash
    # Optional but recommended for enhanced functionality
    NCBI_API_KEY=your_ncbi_api_key_here
    ```
 
-5. **Install external tools:**
-   - **fpocket**: Required for protein pocket detection
-     ```bash
-     # Install fpocket (follow instructions at https://github.com/Discngine/fpocket)
-     ```
-
 ## Usage
 
 ### Running the Complete Pipeline
 
-The main entry point is the `EnhancedPipelineOrchestrator`. Run the pipeline using WSL with the virtual environment activated:
+The main entry point is the `EnhancedPipelineOrchestrator`. Run the pipeline using:
 
 ```bash
-wsl bash -c "source .venv/bin/activate && python3 -m orchestrator.enhanced_pipeline_orchestrator \
+# Activate the conda environment first
+conda activate mech-coherence
+
+# Run the pipeline
+python -m orchestrator.enhanced_pipeline_orchestrator \
     --variants examples/ex_variants.json \
     --clinical examples/ex_clinical_data.json \
     --protein-seq examples/ex_protein_seq.txt \
     --pdb examples/protein_42.pdb \
     --output-dir outputs \
-    --max-workers 8"
+    --max-workers 8
 ```
 
 ### Input File Formats
@@ -170,6 +174,9 @@ This file is **12GB** and too large to distribute with the repository. For demon
 Run the test suite using pytest:
 
 ```bash
+# Activate the conda environment first
+conda activate mech-coherence
+
 # Run all tests
 pytest tests/
 
@@ -181,3 +188,51 @@ pytest -v tests/
 ```
 
 The test suite can be integrated into CI/CD pipelines for automated testing.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Conda environment creation fails**: 
+   - Make sure you have the latest version of conda installed
+   - If you see "Solving environment" taking too long, the environment file has been optimized to avoid dependency conflicts
+
+2. **Import errors**: 
+   - Ensure you're using the correct conda environment (`conda activate mech-coherence`)
+   - Verify installation with: `python -c "import numpy, pandas, torch, biopython; print('OK')"`
+
+3. **Memory issues**: 
+   - Reduce `--max-workers` parameter for systems with limited RAM
+
+4. **Missing fpocket**: 
+   - Install fpocket using: `conda install -c conda-forge fpocket -y`
+   - Verify installation with: `fpocket -h`
+
+5. **gseapy installation issues**: 
+   - The environment file excludes `gseapy` due to Rust compiler requirements
+   - If you need pathway enrichment analysis, install Rust first: `brew install rust` (macOS) or `conda install rust`
+   - Then install gseapy: `pip install gseapy`
+
+6. **fpocket error**: 
+   - If you see "No such file or directory: 'fpocket'", install fpocket using the command above
+   - Make sure you're in the conda environment when running the pipeline
+
+### System Requirements
+
+- **Minimum RAM**: 8GB (16GB recommended for large datasets)
+- **Storage**: At least 20GB free space for outputs and temporary files
+- **CPU**: Multi-core processor recommended for parallel processing
+- **Operating System**: macOS, Linux, or Windows with WSL
+
+### Environment Details
+
+The conda environment includes:
+- **Core scientific packages**: numpy, pandas, scipy, scikit-learn
+- **Bioinformatics tools**: biopython, scanpy, anndata
+- **Machine learning**: torch, transformers
+- **Visualization**: matplotlib, seaborn
+- **Web frameworks**: streamlit, aiohttp
+- **Structural biology**: mdtraj, cobra, fpocket
+- **Testing**: pytest
+
+All packages are configured for compatibility and should install without conflicts.
