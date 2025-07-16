@@ -23,7 +23,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 import statistics
@@ -347,7 +347,7 @@ class IntelligentCoherenceScorer:
         
         return final_score
     
-    def _calculate_clinical_translatability_score(self, coherence_results: Dict) -> float:
+    def _calculate_clinical_translatability_score(self, coherence_results: Union[Dict, List]) -> float:
         """Calculate clinical translatability score from coherence results"""
         thresholds = self.config['thresholds']
         
@@ -355,33 +355,68 @@ class IntelligentCoherenceScorer:
             logger.warning("No coherence results data available - using fallback score of 0.0")
             return 0.0
         
-        # Extract cross-scale consistency
-        cross_scale_consistency = coherence_results.get('cross_scale_consistency', 0.0)
-        
-        # Calculate tissue specificity score
-        tissue_scores = coherence_results.get('tissue_specificity_scores', {})
-        tissue_specificity = 0.0
-        if tissue_scores:
-            # Calculate average tissue specificity across genes
-            gene_scores = []
-            for gene_scores_dict in tissue_scores.values():
-                if isinstance(gene_scores_dict, dict):
-                    gene_scores.extend(gene_scores_dict.values())
+        # Handle both single patient (dict) and multiple patients (list) formats
+        if isinstance(coherence_results, list):
+            # Multiple patients - calculate average score across all patients
+            if not coherence_results:
+                logger.warning("Empty coherence results list - using fallback score of 0.0")
+                return 0.0
             
-            if gene_scores:
-                tissue_specificity = statistics.mean(gene_scores)
-            else:
-                logger.warning("No valid tissue specificity scores found")
+            patient_scores = []
+            for patient_result in coherence_results:
+                # Extract cross-scale consistency for this patient
+                cross_scale_consistency = patient_result.get('cross_scale_consistency', 0.0)
+                
+                # Calculate tissue specificity score for this patient
+                tissue_scores = patient_result.get('tissue_specificity_scores', {})
+                tissue_specificity = 0.0
+                if tissue_scores:
+                    # Calculate average tissue specificity across genes
+                    gene_scores = []
+                    for gene_scores_dict in tissue_scores.values():
+                        if isinstance(gene_scores_dict, dict):
+                            gene_scores.extend(gene_scores_dict.values())
+                    
+                    if gene_scores:
+                        tissue_specificity = statistics.mean(gene_scores)
+                
+                # Calculate score for this patient
+                clinical_score = (cross_scale_consistency * 0.7 + tissue_specificity * 0.3)
+                patient_scores.append(min(1.0, clinical_score))
+            
+            # Return average score across all patients
+            final_score = statistics.mean(patient_scores) if patient_scores else 0.0
+            logger.debug(f"Clinical translatability score (multi-patient): {final_score:.3f} (average of {len(patient_scores)} patients)")
+            return final_score
         else:
-            logger.warning("No tissue specificity scores found in coherence results")
-        
-        # Combine scores
-        clinical_score = (cross_scale_consistency * 0.7 + tissue_specificity * 0.3)
-        final_score = min(1.0, clinical_score)
-        
-        logger.debug(f"Clinical translatability score: {final_score:.3f} (consistency: {cross_scale_consistency:.3f}, tissue: {tissue_specificity:.3f})")
-        
-        return final_score
+            # Single patient (dict)
+            # Extract cross-scale consistency
+            cross_scale_consistency = coherence_results.get('cross_scale_consistency', 0.0)
+            
+            # Calculate tissue specificity score
+            tissue_scores = coherence_results.get('tissue_specificity_scores', {})
+            tissue_specificity = 0.0
+            if tissue_scores:
+                # Calculate average tissue specificity across genes
+                gene_scores = []
+                for gene_scores_dict in tissue_scores.values():
+                    if isinstance(gene_scores_dict, dict):
+                        gene_scores.extend(gene_scores_dict.values())
+                
+                if gene_scores:
+                    tissue_specificity = statistics.mean(gene_scores)
+                else:
+                    logger.warning("No valid tissue specificity scores found")
+            else:
+                logger.warning("No tissue specificity scores found in coherence results")
+            
+            # Combine scores
+            clinical_score = (cross_scale_consistency * 0.7 + tissue_specificity * 0.3)
+            final_score = min(1.0, clinical_score)
+            
+            logger.debug(f"Clinical translatability score (single patient): {final_score:.3f} (consistency: {cross_scale_consistency:.3f}, tissue: {tissue_specificity:.3f})")
+            
+            return final_score
     
     def _calculate_overall_score(self, category_scores: CategoryScore) -> float:
         """Calculate overall coherence score"""
@@ -492,28 +527,71 @@ class IntelligentCoherenceScorer:
             ))
         
         # Step 5: Run tissue-specific biomarker relevance check (GTEx)
-        if coherence_results and 'tissue_specificity_scores' in coherence_results:
-            tissue_scores = coherence_results['tissue_specificity_scores']
-            cross_scale_consistency = coherence_results.get('cross_scale_consistency', 0.0)
-            thresholds = self.config['thresholds']
-            
-            # Get tissue-specific expression data
-            tissue_info = []
-            for gene, gene_tissues in tissue_scores.items():
-                for tissue, score in gene_tissues.items():
-                    if score > thresholds['tissue_expression_min']:  # Only include tissues with meaningful expression
-                        tissue_info.append(f"{gene} in {tissue} (TPM: {score:.2f})")
-            
-            tissue_summary = "; ".join(tissue_info[:3]) if tissue_info else "limited tissue-specific expression"
-            consistency_level = ("high" if cross_scale_consistency > thresholds['consistency_high'] 
-                              else "moderate" if cross_scale_consistency > thresholds['consistency_moderate'] 
-                              else "low")
-            
-            trace.append(CausalTrace(
-                step=5,
-                level="clinical",
-                description=f"GTEx tissue-specific analysis shows {tissue_summary}. Cross-scale consistency: {consistency_level} ({cross_scale_consistency:.3f}), supporting clinical relevance assessment"
-            ))
+        if coherence_results:
+            # Handle both single patient (dict) and multiple patients (list) formats
+            if isinstance(coherence_results, list):
+                # Multiple patients - process all for trace
+                for patient_result in coherence_results:
+                    tissue_scores = patient_result.get('tissue_specificity_scores', {})
+                    cross_scale_consistency = patient_result.get('cross_scale_consistency', 0.0)
+                    patient_id = patient_result.get('patient_id', 'Unknown')
+                    if tissue_scores:
+                        thresholds = self.config['thresholds']
+                        tissue_info = []
+                        for gene, gene_tissues in tissue_scores.items():
+                            for tissue, score in gene_tissues.items():
+                                if score > thresholds['tissue_expression_min']:
+                                    tissue_info.append(f"{gene} in {tissue} (TPM: {score:.2f})")
+                        tissue_summary = "; ".join(tissue_info[:3]) if tissue_info else "limited tissue-specific expression"
+                        consistency_level = ("high" if cross_scale_consistency > thresholds['consistency_high'] 
+                                          else "moderate" if cross_scale_consistency > thresholds['consistency_moderate'] 
+                                          else "low")
+                        patient_info = f" (Patient {patient_id})"
+                        trace.append(CausalTrace(
+                            step=5,
+                            level="clinical",
+                            description=f"GTEx tissue-specific analysis shows {tissue_summary}. Cross-scale consistency: {consistency_level} ({cross_scale_consistency:.3f}){patient_info}, supporting clinical relevance assessment"
+                        ))
+                    # else:
+                    #     patient_info = f" (Patient {patient_id})"
+                    #     trace.append(CausalTrace(
+                    #         step=5,
+                    #         level="clinical",
+                    #         description=f"GTEx tissue-specific biomarker analysis completed, evaluating gene expression patterns across relevant tissues for clinical translatability{patient_info}"
+                    #     ))
+            else:
+                # Single patient
+                tissue_scores = coherence_results.get('tissue_specificity_scores', {})
+                cross_scale_consistency = coherence_results.get('cross_scale_consistency', 0.0)
+                patient_id = coherence_results.get('patient_id', 'Single patient')
+           
+                if tissue_scores:
+                    thresholds = self.config['thresholds']
+                    
+                    # Get tissue-specific expression data
+                    tissue_info = []
+                    for gene, gene_tissues in tissue_scores.items():
+                        for tissue, score in gene_tissues.items():
+                            if score > thresholds['tissue_expression_min']:  # Only include tissues with meaningful expression
+                                tissue_info.append(f"{gene} in {tissue} (TPM: {score:.2f})")
+                    
+                    tissue_summary = "; ".join(tissue_info[:3]) if tissue_info else "limited tissue-specific expression"
+                    consistency_level = ("high" if cross_scale_consistency > thresholds['consistency_high'] 
+                                    else "moderate" if cross_scale_consistency > thresholds['consistency_moderate'] 
+                                    else "low")
+                    
+                    patient_info = f" (Patient {patient_id})" if patient_id != 'Single patient' else ""
+                    trace.append(CausalTrace(
+                        step=5,
+                        level="clinical",
+                        description=f"GTEx tissue-specific analysis shows {tissue_summary}. Cross-scale consistency: {consistency_level} ({cross_scale_consistency:.3f}){patient_info}, supporting clinical relevance assessment"
+                    ))
+                else:
+                    trace.append(CausalTrace(
+                        step=5,
+                        level="clinical",
+                        description="GTEx tissue-specific biomarker analysis completed, evaluating gene expression patterns across relevant tissues for clinical translatability"
+                    ))
         else:
             trace.append(CausalTrace(
                 step=5,
@@ -536,7 +614,7 @@ class IntelligentCoherenceScorer:
             'input_files': {
                 'structural_results': structural_results.get('timestamp', ''),
                 'variant_impact_results': variant_impact_results.get('pdb_file', ''),
-                'coherence_results': coherence_results.get('processing_timestamp', ''),
+                'coherence_results': (coherence_results[0].get('processing_timestamp', '') if isinstance(coherence_results, list) and coherence_results else coherence_results.get('processing_timestamp', '')),
                 'pathway_dynamics_results': pathway_dynamics_results.get('summary', {})
             },
             'config_used': self.config,

@@ -21,16 +21,22 @@ import asyncio
 import hashlib
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 import statistics
 import numpy as np
 
 # Configure logging
-from .logging_config import setup_logging, get_logger
-setup_logging()
-logger = get_logger(__name__)
+try:
+    from .logging_config import setup_logging, get_logger
+    setup_logging()
+    logger = get_logger(__name__)
+except ImportError:
+    # Handle case when run as script
+    import logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
 
 # Async HTTP client
 try:
@@ -115,61 +121,67 @@ class CoherenceAnalyzer:
      
     async def analyze_coherence(self, 
                               processed_input_file: str,
-                              clinical_data_file: str) -> CoherenceResult:
+                              clinical_data_file: str) -> Any:
         """
         Main analysis method for coherence across biological scales
-        
-        Args:
-            processed_input_file: Path to processed input JSON
-            clinical_data_file: Path to clinical data JSON
-            
-        Returns:
-            CoherenceResult containing cross-scale consistency score
+        Returns a single result (dict) or a list of results (if multiple patients)
         """
         logger.info("Starting coherence analysis across biological scales")
         
         # Load input data
         processed_input = self._load_json(processed_input_file)
         clinical_data = self._load_json(clinical_data_file)
-        
-        # Initialize result object
-        result = CoherenceResult(cross_scale_consistency=0.0)
-        
-        # Perform API-dependent analysis
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=self.config['gtex_timeout'])
-        ) as session:
-            self.session = session
 
-            # Extract genes and GENCODE IDs from processed input
-            genes = self._extract_genes(processed_input)
-            gene_to_gencode = self._extract_gencode_ids(processed_input)
-            tissues = self._extract_target_tissues(clinical_data)
-            
-            # Get GTEx expression data using single gene-single tissue queries
-            gtex_data = await self._get_gtex_expression_data_single_queries(genes, gene_to_gencode, tissues)
-            result.gtex_validation_results = gtex_data
-            
-            # Calculate coherence across scales
-            consistency_score = self._calculate_cross_scale_consistency(
-                processed_input, clinical_data, gtex_data
-            )
-            
-            result.cross_scale_consistency = consistency_score
-            result.evidence_weights = self.config['evidence_weights']
-            
-            # Calculate tissue-specific scores
-            result.tissue_specificity_scores = self._calculate_tissue_specificity_scores(
-                clinical_data, gtex_data
-            )
-            
-            # Add warnings if consistency is low
-            # if consistency_score < self.config['consistency_threshold']:
-            #     result.warnings.append(f"Low cross-scale consistency: {consistency_score:.3f}")
-            
-            logger.info(f"Coherence analysis complete. Consistency score: {consistency_score:.3f}")
-        
-        return result
+        # If clinical_data is a list, analyze each patient separately
+        if isinstance(clinical_data, list):
+            results = []
+            for patient in clinical_data:
+                logger.info(f"Analyzing patient: {patient.get('patient_id', 'unknown')}")
+                # Perform API-dependent analysis for each patient
+                async with aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.config['gtex_timeout'])
+                ) as session:
+                    self.session = session
+                    genes = self._extract_genes(processed_input)
+                    gene_to_gencode = self._extract_gencode_ids(processed_input)
+                    tissues = self._extract_target_tissues(patient)
+                    gtex_data = await self._get_gtex_expression_data_single_queries(genes, gene_to_gencode, tissues)
+                    consistency_score = self._calculate_cross_scale_consistency(
+                        processed_input, patient, gtex_data
+                    )
+                    evidence_weights = self.config['evidence_weights']
+                    tissue_specificity_scores = self._calculate_tissue_specificity_scores(patient, gtex_data)
+                    result = {
+                        'patient_id': patient.get('patient_id', None),
+                        'cross_scale_consistency': consistency_score,
+                        'tissue_specificity_scores': tissue_specificity_scores,
+                        'evidence_weights': evidence_weights,
+                        'gtex_validation_results': gtex_data,
+                        'processing_timestamp': datetime.now().isoformat()
+                    }
+                    results.append(result)
+            return results
+        else:
+            # Single patient (dict)
+            result = CoherenceResult(cross_scale_consistency=0.0)
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self.config['gtex_timeout'])
+            ) as session:
+                self.session = session
+                genes = self._extract_genes(processed_input)
+                gene_to_gencode = self._extract_gencode_ids(processed_input)
+                tissues = self._extract_target_tissues(clinical_data)
+                gtex_data = await self._get_gtex_expression_data_single_queries(genes, gene_to_gencode, tissues)
+                result.gtex_validation_results = gtex_data
+                consistency_score = self._calculate_cross_scale_consistency(
+                    processed_input, clinical_data, gtex_data
+                )
+                result.cross_scale_consistency = consistency_score
+                result.evidence_weights = self.config['evidence_weights']
+                result.tissue_specificity_scores = self._calculate_tissue_specificity_scores(
+                    clinical_data, gtex_data
+                )
+            return result
     
     def _load_json(self, file_path: str) -> Dict:
         """Load JSON file with error handling"""
@@ -514,11 +526,21 @@ class CoherenceAnalyzer:
             
         return statistics.mean(tissue_scores)
     
-    def _calculate_tissue_specificity_scores(self, clinical_data: Dict, gtex_data: Dict) -> Dict[str, float]:
+    def _calculate_tissue_specificity_scores(self, clinical_data: Union[Dict, List], gtex_data: Dict) -> Dict[str, float]:
         """Calculate detailed tissue specificity scores"""
         scores = {}
         
-        diagnosis = clinical_data.get('diagnosis', '').lower()
+        # Handle both single patient (dict) and multiple patients (list) formats
+        if isinstance(clinical_data, list):
+            # Multiple patients - use the first patient's diagnosis
+            if not clinical_data:
+                logger.warning("Empty clinical data list")
+                return scores
+            diagnosis = clinical_data[0].get('diagnosis', '').lower()
+        else:
+            # Single patient
+            diagnosis = clinical_data.get('diagnosis', '').lower()
+        
         target_tissues = self.disease_tissue_mapping.get(diagnosis, [])
         
         for gene, tissue_data in gtex_data.items():
@@ -538,19 +560,21 @@ class CoherenceAnalyzer:
         
         return scores
     
-    def export_results(self, result: CoherenceResult, output_file: str) -> None:
-        """Export coherence results to JSON file"""
-        output_data = {
-            'cross_scale_consistency': result.cross_scale_consistency,
-            'tissue_specificity_scores': result.tissue_specificity_scores,
-            'evidence_weights': result.evidence_weights,
-            'gtex_validation_results': result.gtex_validation_results,
-            'processing_timestamp': result.processing_timestamp
-        }
-        
+    def export_results(self, result: Any, output_file: str) -> None:
+        """Export coherence results to JSON file. Handles both single and multiple results."""
         try:
             with open(output_file, 'w') as f:
-                json.dump(output_data, f, indent=2)
+                if isinstance(result, list):
+                    json.dump(result, f, indent=2)
+                else:
+                    output_data = {
+                        'cross_scale_consistency': result.cross_scale_consistency,
+                        'tissue_specificity_scores': result.tissue_specificity_scores,
+                        'evidence_weights': result.evidence_weights,
+                        'gtex_validation_results': result.gtex_validation_results,
+                        'processing_timestamp': result.processing_timestamp
+                    }
+                    json.dump(output_data, f, indent=2)
             logger.info(f"Coherence results exported to: {output_file}")
         except Exception as e:
             logger.error(f"Failed to export results to {output_file}: {e}")
@@ -591,14 +615,25 @@ async def main():
     
     if args.simple:
         # Simple output format as requested
-        simple_output = {"cross_scale_consistency": result.cross_scale_consistency}
-        logger.info(json.dumps(simple_output, indent=2))
+        if isinstance(result, list):
+            simple_output = [
+                {"patient_id": r.get("patient_id", None), "cross_scale_consistency": r["cross_scale_consistency"]}
+                for r in result
+            ]
+            logger.info(json.dumps(simple_output, indent=2))
+        else:
+            simple_output = {"cross_scale_consistency": result.cross_scale_consistency}
+            logger.info(json.dumps(simple_output, indent=2))
     else:
         # Full output
         analyzer.export_results(result, args.output)
         logger.info(f"✓ Coherence analysis complete")
         logger.info(f"✓ Results saved to: {args.output}")
-        logger.info(f"✓ Cross-scale consistency: {result.cross_scale_consistency:.3f}")
+        if isinstance(result, list):
+            for r in result:
+                logger.info(f"✓ Patient {r.get('patient_id', None)}: Cross-scale consistency: {r['cross_scale_consistency']:.3f}")
+        else:
+            logger.info(f"✓ Cross-scale consistency: {result.cross_scale_consistency:.3f}")
 
 
 if __name__ == "__main__":
