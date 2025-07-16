@@ -16,6 +16,7 @@ dependencies:
 - pytest
 - python-dateutil
 - python-dotenv
+- fpocket
 - pip
 - pip:
   - torch
@@ -29,7 +30,5 @@ dependencies:
   - mdtraj
   - cobra
   - pdbx
-#
-# External tool required (install separately):
-# fpocket: https://github.com/Discngine/fpocket
+
 # Note: gseapy requires Rust compiler - install separately if needed
